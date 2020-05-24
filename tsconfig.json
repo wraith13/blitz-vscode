@@ -29,11 +29,12 @@
         "noEmitOnError": true,
         "rootDir": "source",
         "strict": true,
-        //"resolveJsonModule": true,
+        "resolveJsonModule": true,
         "esModuleInterop": true
     },
     "exclude": [
         "node_modules",
-        ".vscode-test"
+        ".vscode-test",
+        "out"
     ]
 }
