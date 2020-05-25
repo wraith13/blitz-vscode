@@ -1,27 +1,107 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+interface SettingsEntry
+{
+	id : string ;
+	type : string | string [ ] ;
+	default : any ;
+	minimum ?: number ;
+	maximum ?: number ;
+	overridable ?: boolean ;
+	description ?: string ;
+} ;
+const vscodeSettings : SettingsEntry [ ] = [ ];
+export const extentionSettings = ( ): SettingsEntry [ ] =>
+{
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+} ;
+export const aggregateSettings = ( ): SettingsEntry [ ] => vscodeSettings . concat ( extentionSettings ( ) ) ;
+export const editSettingItem = async ( entry : SettingsEntry ) =>
+(
+	await vscode .window . showQuickPick
+	(
+		[
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "blitz" is now active!');
+		] ,
+		{
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('blitz.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
+		}
+	)
+) ?. command ( ) ;
+export const editSettings = async (
+	_configurationTarget : vscode . ConfigurationTarget,
+	_overridable : boolean
+) =>
+(
+	await vscode .window . showQuickPick
+	(
+		( await aggregateSettings ( ) ) . map
+		(
+			i =>
+			({
+				label : i . id ,
+				command : async ( ) => await editSettingItem ( i ),
+			})
+		) ,
+		{
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from blitz!');
-	});
-
-	context.subscriptions.push(disposable);
-}
-
-// this method is called when your extension is deactivated
-export function deactivate() {}
+		}
+	)
+) ?. command ( ) ;
+export const activate = (context : vscode . ExtensionContext) => context . subscriptions . push
+(
+	vscode . commands . registerCommand
+	(
+		'blitz.editUserSettings',
+		async ( ) => editSettings
+		(
+			vscode . ConfigurationTarget . Global ,
+			false
+		) ,
+	) ,
+	vscode . commands . registerCommand
+	(
+		'blitz.editWorkspaceSettings',
+		async ( ) => editSettings
+		(
+			vscode . ConfigurationTarget . Workspace ,
+			false
+		) ,
+	) ,
+	vscode . commands . registerCommand
+	(
+		'blitz.editFolderSettings',
+		async ( ) => editSettings
+		(
+			vscode . ConfigurationTarget . WorkspaceFolder ,
+			false
+		) ,
+	) ,
+	vscode . commands . registerCommand
+	(
+		'blitz.editUserOverrideSettings',
+		async ( ) => editSettings
+		(
+			vscode . ConfigurationTarget . Global ,
+			true
+		) ,
+	) ,
+	vscode . commands . registerCommand
+	(
+		'blitz.editWorkspaceOverrideSettings',
+		async ( ) => editSettings
+		(
+			vscode . ConfigurationTarget . Workspace ,
+			true
+		) ,
+	) ,
+	vscode . commands . registerCommand
+	(
+		'blitz.editFolderOverrideSettings',
+		async ( ) => editSettings
+		(
+			vscode . ConfigurationTarget . WorkspaceFolder ,
+			true
+		) ,
+	)
+) ;
+export const deactivate = ( ) => { } ;
