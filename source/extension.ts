@@ -27,13 +27,28 @@ interface PackageJson
 } ;
 interface SettingsEntry extends PackageJsonConfigurationProperty
 {
+    title : string ;
     id : string ;
 } ;
-const vscodeSettings : SettingsEntry [ ] = [ ];
-export const extentionSettings = ( ): SettingsEntry [ ] =>
-{
-
-} ;
+const vscodeSettings : SettingsEntry [ ] = [ ] ;
+export const extentionSettings = ( ) : SettingsEntry [ ] => vscode . extensions . all
+    . map ( i => ( < PackageJson > i ?. packageJSON ) ?. contributes ?. configuration )
+    . filter ( i => i )
+    . map
+    (
+        i => Object . keys ( i . properties ) . map
+        (
+            id => Object . assign
+            (
+                {
+                    title : i . title ,
+                    id ,
+                } ,
+                i . properties [ id ]
+            )
+        )
+    )
+    . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
 export const aggregateSettings = ( ): SettingsEntry [ ] => vscodeSettings . concat ( extentionSettings ( ) ) ;
 export const editSettingItem = async ( entry : SettingsEntry ) =>
 (
