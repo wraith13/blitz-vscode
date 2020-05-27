@@ -31,9 +31,9 @@ interface SettingsEntry extends PackageJsonConfigurationProperty
     id : string ;
 } ;
 const vscodeSettings : SettingsEntry [ ] = [ ] ;
-export const extentionSettings = ( ) : SettingsEntry [ ] => vscode . extensions . all
+export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions . all
     . map ( i => ( < PackageJson > i ?. packageJSON ) ?. contributes ?. configuration )
-    . filter ( i => i )
+    . filter ( i => i ?. properties )
     . map
     (
         i => Object . keys ( i . properties ) . map
@@ -49,10 +49,13 @@ export const extentionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
         )
     )
     . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
-export const aggregateSettings = ( ): SettingsEntry [ ] => vscodeSettings . concat ( extentionSettings ( ) ) ;
+
+export const aggregateSettings = ( ) => vscodeSettings . concat ( extensionSettings ( ) ) ;
 export const editSettingItem = async ( entry : SettingsEntry ) =>
+await vscode . window . showInformationMessage ( JSON . stringify ( entry ) ) ;
+/*
 (
-    await vscode .window . showQuickPick
+    await vscode . window . showQuickPick
     (
         [
 
@@ -62,6 +65,16 @@ export const editSettingItem = async ( entry : SettingsEntry ) =>
         }
     )
 ) ?. command ( ) ;
+*/
+export const makeSettingLabel = ( entry : SettingsEntry ) =>
+{
+    const title = `${ entry . title }: `;
+    const base = entry.id
+        .replace(/\./mg, ": ")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/(^|\s)([a-z])/g, (_s,m1,m2)=>`${m1}${m2.toUpperCase()}`);
+    return base.startsWith(title) ? base: `${title}${base}`;
+};
 export const editSettings = async (
     _configurationTarget : vscode . ConfigurationTarget,
     _overridable : boolean
@@ -69,16 +82,19 @@ export const editSettings = async (
 (
     await vscode .window . showQuickPick
     (
-        ( await aggregateSettings ( ) ) . map
+        aggregateSettings ( ) . map
         (
             i =>
             ({
-                label : i . id ,
-                command : async ( ) => await editSettingItem ( i ),
+                label : makeSettingLabel ( i ) ,
+                description : i . id +": "+ JSON.stringify(vscode.workspace.getConfiguration(i.id.replace(/^(.*)(\.)([^.]*)$/, "$1")).get(i.id.replace(/^(.*)(\.)([^.]*)$/, "$3"))),
+                detail : JSON.stringify(i.type) + i . description ,
+                command : async ( ) => await editSettingItem ( i ) ,
             })
         ) ,
         {
-
+            placeHolder : "Select a setting item." ,
+            matchOnDescription : true ,
         }
     )
 ) ?. command ( ) ;
