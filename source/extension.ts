@@ -51,6 +51,14 @@ export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
     . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
 
 export const aggregateSettings = ( ) => vscodeSettings . concat ( extensionSettings ( ) ) ;
+export const makeSettingValueItemListForEnum = ( entry : SettingsEntry ) =>
+{
+
+};
+export const makeSettingValueItemList = ( entry : SettingsEntry ) =>
+{
+
+};
 export const editSettingItem = async ( entry : SettingsEntry ) =>
 await vscode . window . showInformationMessage ( JSON . stringify ( entry ) ) ;
 /*
@@ -75,8 +83,24 @@ export const makeSettingLabel = ( entry : SettingsEntry ) =>
         .replace(/(^|\s)([a-z])/g, (_s,m1,m2)=>`${m1}${m2.toUpperCase()}`);
     return base.startsWith(title) ? base: `${title}${base}`;
 };
+export const getConfigurationScope = ( configurationTarget : vscode . ConfigurationTarget ) =>
+{
+    switch ( configurationTarget )
+    {
+    case vscode . ConfigurationTarget . Global :
+        return undefined;
+    case vscode . ConfigurationTarget . Workspace :
+        return vscode.workspace.workspaceFolders ?. [ 0 ] ;
+    case vscode . ConfigurationTarget . WorkspaceFolder :
+        const activeDocumentUri = vscode . window . activeTextEditor ?. document . uri ;
+        return activeDocumentUri ?
+            vscode . workspace . getWorkspaceFolder ( activeDocumentUri ) :
+            vscode . workspace . workspaceFolders ?. [ 0 ] ;
+    }
+    return undefined ;
+};
 export const editSettings = async (
-    _configurationTarget : vscode . ConfigurationTarget,
+    configurationTarget : vscode . ConfigurationTarget ,
     _overridable : boolean
 ) =>
 (
@@ -87,8 +111,16 @@ export const editSettings = async (
             i =>
             ({
                 label : makeSettingLabel ( i ) ,
-                description : i . id +": "+ JSON.stringify(vscode.workspace.getConfiguration(i.id.replace(/^(.*)(\.)([^.]*)$/, "$1")).get(i.id.replace(/^(.*)(\.)([^.]*)$/, "$3"))),
-                detail : JSON.stringify(i.type) + i . description ,
+                description : i . id + ": " + JSON . stringify
+                (
+                    vscode.workspace.getConfiguration
+                    (
+                        i . id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ,
+                        getConfigurationScope ( configurationTarget )
+                    )
+                    .get ( i . id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) )
+                ),
+                detail : JSON . stringify ( i . type ) + i . description ,
                 command : async ( ) => await editSettingItem ( i ) ,
             })
         ) ,
@@ -98,7 +130,7 @@ export const editSettings = async (
         }
     )
 ) ?. command ( ) ;
-export const activate = (context : vscode . ExtensionContext) => context . subscriptions . push
+export const activate = ( context : vscode . ExtensionContext ) => context . subscriptions . push
 (
     vscode . commands . registerCommand
     (
