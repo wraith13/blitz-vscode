@@ -1,8 +1,12 @@
 import * as vscode from 'vscode';
+type ConfigurationType = "string" | "boolean" | "number" | "array" | "object" | ConfigurationType [ ] ;
 interface PackageJsonConfigurationProperty
 {
-    type : string | string [ ] ;
+    type : ConfigurationType ;
+    scope : string ;
     default : any ;
+    items : PackageJsonConfiguration ;
+    enum ?: string [ ] ;
     minimum ?: number ;
     maximum ?: number ;
     overridable ?: boolean ;
@@ -10,12 +14,16 @@ interface PackageJsonConfigurationProperty
 }
 interface PackageJsonConfiguration
 {
+    id ?: string;
+    order ?: number,
+    type ?: ConfigurationType,
     title : string;
     properties : { [ key : string ] : PackageJsonConfigurationProperty }
 }
 interface PackageJsonContributes
 {
-    configuration : PackageJsonConfiguration
+    configuration : PackageJsonConfiguration ;
+    configurationDefaults : object ;
 }
 interface PackageJson
 {
@@ -51,15 +59,79 @@ export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
     . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
 
 export const aggregateSettings = ( ) => vscodeSettings . concat ( extensionSettings ( ) ) ;
-export const makeSettingValueItemListForEnum = ( entry : SettingsEntry ) =>
+export const getConfig =
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    _overridable : boolean ,
+    entry : SettingsEntry
+) => vscode.workspace.getConfiguration
+(
+    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ,
+    getConfigurationScope ( configurationTarget )
+)
+. get
+(
+    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" )
+);
+export const setConfig = async < T >
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    _overridable : boolean ,
+    entry : SettingsEntry ,
+    value : T
+) => await vscode.workspace.getConfiguration
+(
+    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ,
+    getConfigurationScope ( configurationTarget )
+)
+. update
+(
+    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) ,
+    value ,
+    configurationTarget
+);
+export const makeSettingValueItem = < T >
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry ,
+    value : T
+) =>
+({
+    label : `value` ,
+    command : async () => await setConfig
+    (
+        configurationTarget ,
+        overridable ,
+        entry ,
+        value
+    )
+});
+export const makeSettingValueItemListForEnum =
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry
+) =>
+    entry . enum ?. map
+    (
+        i => makeSettingValueItem
+        (
+            configurationTarget ,
+            overridable ,
+            entry ,
+            i
+        )
+    ) ?? [ ] ;
+export const makeSettingValueItemList = ( _entry : SettingsEntry ) =>
 {
 
 };
-export const makeSettingValueItemList = ( entry : SettingsEntry ) =>
-{
-
-};
-export const editSettingItem = async ( entry : SettingsEntry ) =>
+export const editSettingItem = async (
+    _configurationTarget : vscode . ConfigurationTarget ,
+    _overridable : boolean ,
+    entry : SettingsEntry
+) =>
 await vscode . window . showInformationMessage ( JSON . stringify ( entry ) ) ;
 /*
 (
@@ -99,9 +171,16 @@ export const getConfigurationScope = ( configurationTarget : vscode . Configurat
     }
     return undefined ;
 };
+export const makeEditSettingDescription = ( entry : SettingsEntry, value : any ) =>
+    (
+        JSON . stringify ( entry . default ) === JSON . stringify ( value ) ?
+            "":
+            "* "
+    )
+    + entry . id + ": " + JSON . stringify ( value ) ;
 export const editSettings = async (
     configurationTarget : vscode . ConfigurationTarget ,
-    _overridable : boolean
+    overridable : boolean
 ) =>
 (
     await vscode .window . showQuickPick
@@ -111,17 +190,23 @@ export const editSettings = async (
             i =>
             ({
                 label : makeSettingLabel ( i ) ,
-                description : i . id + ": " + JSON . stringify
+                description : makeEditSettingDescription
                 (
-                    vscode.workspace.getConfiguration
+                    i,
+                    getConfig
                     (
-                        i . id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ,
-                        getConfigurationScope ( configurationTarget )
+                        configurationTarget ,
+                        overridable ,
+                        i
                     )
-                    .get ( i . id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) )
                 ),
                 detail : JSON . stringify ( i . type ) + i . description ,
-                command : async ( ) => await editSettingItem ( i ) ,
+                command : async ( ) => await editSettingItem
+                (
+                    configurationTarget ,
+                    overridable ,
+                    i
+                ) ,
             })
         ) ,
         {
