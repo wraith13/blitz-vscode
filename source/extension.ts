@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-type PrimaryConfigurationType = "null" | "string" | "boolean" | "number" | "array" | "object" ;
+type PrimaryConfigurationType = "null" | "string" | "boolean" | "integer" | "number" | "array" | "object" ;
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType [ ] ;
 interface PackageJsonConfigurationProperty
 {
@@ -40,6 +40,34 @@ interface SettingsEntry extends PackageJsonConfigurationProperty
     id : string ;
 } ;
 const vscodeSettings : SettingsEntry [ ] = [ ] ;
+export const getDefaultValue = ( entry : SettingsEntry ) =>
+{
+    if ( undefined !== entry . default )
+    {
+        return entry . default;
+    }
+    switch
+    (
+        Array . isArray ( entry . type ) ?
+            ( < PrimaryConfigurationType [ ] > entry . type ) [ 0 ] :
+            < PrimaryConfigurationType > entry . type
+    )
+    {
+    case "boolean" :
+        return false ;
+    case "integer" :
+    case "number" :
+        return 0 ;
+    case "string" :
+        return "" ;
+    case "array" :
+        return [ ] ;
+    case "object" :
+        return { } ;
+    default:
+        return null ;
+    }
+};
 export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions . all
     . map ( i => ( < PackageJson > i ?. packageJSON ) ?. contributes ?. configuration )
     . filter ( i => i ?. properties )
@@ -156,10 +184,7 @@ export const makeSettingValueList =
 {
     const result : unknown [ ] = [ ];
     const types = ( "string" === typeof entry . type ? [ entry . type ]: entry . type  );
-    if ( undefined !== entry . default )
-    {
-        result . push ( entry . default ) ;
-    }
+    result . push ( getDefaultValue ( entry ) ) ;
     if ( 0 <= types . indexOf ( "null" ) )
     {
         result . push ( null ) ;
@@ -223,7 +248,7 @@ export const getConfigurationScope = ( configurationTarget : vscode . Configurat
 };
 export const makeEditSettingDescription = ( entry : SettingsEntry, value : any ) =>
     (
-        JSON . stringify ( entry . default ) === JSON . stringify ( value ) ?
+        JSON . stringify ( getDefaultValue ( entry ) ) === JSON . stringify ( value ) ?
             "":
             "* "
     )
