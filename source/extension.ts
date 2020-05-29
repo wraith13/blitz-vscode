@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-type ConfigurationType = "string" | "boolean" | "number" | "array" | "object" | ConfigurationType [ ] ;
+type PrimaryConfigurationType = "null" | "string" | "boolean" | "number" | "array" | "object" ;
+type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType [ ] ;
 interface PackageJsonConfigurationProperty
 {
     type : ConfigurationType ;
@@ -57,23 +58,24 @@ export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
         )
     )
     . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
-
+export const makeConfigurationSection = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ;
+export const makeConfigurationKey = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) ;
 export const aggregateSettings = ( ) => vscodeSettings . concat ( extensionSettings ( ) ) ;
-export const getConfig =
+export const getConfiguration =
 (
     configurationTarget : vscode . ConfigurationTarget ,
     _overridable : boolean ,
     entry : SettingsEntry
 ) => vscode.workspace.getConfiguration
 (
-    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ,
+    makeConfigurationSection ( entry . id ) ,
     getConfigurationScope ( configurationTarget )
 )
 . get
 (
-    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" )
+    makeConfigurationKey ( entry . id )
 );
-export const setConfig = async < T >
+export const setConfiguration = async < T >
 (
     configurationTarget : vscode . ConfigurationTarget ,
     _overridable : boolean ,
@@ -81,12 +83,12 @@ export const setConfig = async < T >
     value : T
 ) => await vscode.workspace.getConfiguration
 (
-    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ,
+    makeConfigurationSection ( entry . id ) ,
     getConfigurationScope ( configurationTarget )
 )
 . update
 (
-    entry . id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) ,
+    makeConfigurationKey ( entry . id ) ,
     value ,
     configurationTarget
 );
@@ -98,8 +100,8 @@ export const makeSettingValueItem = < T >
     value : T
 ) =>
 ({
-    label : `value` ,
-    command : async () => await setConfig
+    label : JSON . stringify ( value ) ,
+    command : async () => await setConfiguration
     (
         configurationTarget ,
         overridable ,
@@ -107,53 +109,101 @@ export const makeSettingValueItem = < T >
         value
     )
 });
+export const makeSettingValueItemListFromList = < T >
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry ,
+    valueList : T [ ]
+) => valueList . map
+(
+    value => makeSettingValueItem
+    (
+        configurationTarget ,
+        overridable ,
+        entry ,
+        value
+    )
+) ;
 export const makeSettingValueItemListForEnum =
 (
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean ,
     entry : SettingsEntry
+) => makeSettingValueItemListFromList
+(
+    configurationTarget ,
+    overridable ,
+    entry ,
+    entry . enum ?? [ ]
+) ;
+export const makeSettingValueItemListForBoolean =
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry
+) => makeSettingValueItemListFromList
+(
+    configurationTarget ,
+    overridable ,
+    entry ,
+    [ false , true ]
+) ;
+export const makeSettingValueList =
+(
+    entry : SettingsEntry
+): unknown [ ] =>
+{
+    const result : unknown [ ] = [ ];
+    const types = ( "string" === typeof entry . type ? [ entry . type ]: entry . type  );
+    if ( undefined !== entry . default )
+    {
+        result . push ( entry . default ) ;
+    }
+    if ( 0 <= types . indexOf ( "null" ) )
+    {
+        result . push ( null ) ;
+    }
+    if ( 0 <= types . indexOf ("boolean") )
+    {
+        result . push ( false ) ;
+        result . push ( true ) ;
+    }
+    if ( entry . enum )
+    {
+        entry . enum . forEach ( i => result . push ( i ) ) ;
+    }
+    return result . filter ( ( i , index ) => index === result . indexOf ( i ) ) ;
+};
+export const editSettingItem = async (
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry
 ) =>
-    entry . enum ?. map
+//await vscode . window . showInformationMessage ( JSON . stringify ( entry ) ) ;
+(
+    await vscode . window . showQuickPick
     (
-        i => makeSettingValueItem
+        makeSettingValueItemListFromList
         (
             configurationTarget ,
             overridable ,
             entry ,
-            i
-        )
-    ) ?? [ ] ;
-export const makeSettingValueItemList = ( _entry : SettingsEntry ) =>
-{
-
-};
-export const editSettingItem = async (
-    _configurationTarget : vscode . ConfigurationTarget ,
-    _overridable : boolean ,
-    entry : SettingsEntry
-) =>
-await vscode . window . showInformationMessage ( JSON . stringify ( entry ) ) ;
-/*
-(
-    await vscode . window . showQuickPick
-    (
-        [
-
-        ] ,
+            makeSettingValueList(entry)
+        ),
         {
 
         }
     )
 ) ?. command ( ) ;
-*/
 export const makeSettingLabel = ( entry : SettingsEntry ) =>
 {
     const title = `${ entry . title }: `;
-    const base = entry.id
-        .replace(/\./mg, ": ")
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/(^|\s)([a-z])/g, (_s,m1,m2)=>`${m1}${m2.toUpperCase()}`);
-    return base.startsWith(title) ? base: `${title}${base}`;
+    const base = entry . id
+        . replace ( /\./mg , ": " )
+        . replace ( /([a-z0-9])([A-Z])/g , "$1 $2" )
+        . replace ( /(^|\s)([a-z])/g , (_s,m1,m2)=>`${m1}${m2.toUpperCase()}` ) ;
+    return base . startsWith ( title ) ? base : `${title}${base}` ;
 };
 export const getConfigurationScope = ( configurationTarget : vscode . ConfigurationTarget ) =>
 {
@@ -177,7 +227,11 @@ export const makeEditSettingDescription = ( entry : SettingsEntry, value : any )
             "":
             "* "
     )
-    + entry . id + ": " + JSON . stringify ( value ) ;
+    + entry . id
+    + ": "
+    + ( "string" === typeof entry . type ? entry . type : JSON . stringify ( entry . type ) )
+    + " = "
+    + JSON . stringify ( value ) ;
 export const editSettings = async (
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean
@@ -193,14 +247,14 @@ export const editSettings = async (
                 description : makeEditSettingDescription
                 (
                     i,
-                    getConfig
+                    getConfiguration
                     (
                         configurationTarget ,
                         overridable ,
                         i
                     )
                 ),
-                detail : JSON . stringify ( i . type ) + i . description ,
+                detail : i . description ,
                 command : async ( ) => await editSettingItem
                 (
                     configurationTarget ,
