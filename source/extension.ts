@@ -93,17 +93,17 @@ export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
 export const makeConfigurationSection = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ;
 export const makeConfigurationKey = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) ;
 export const aggregateSettings = ( ) => vscodeSettings . concat ( extensionSettings ( ) ) ;
-export const getConfiguration =
+export const getConfiguration = < T >
 (
     configurationTarget : vscode . ConfigurationTarget ,
     _overridable : boolean ,
     entry : SettingsEntry
-) => vscode.workspace.getConfiguration
+) : T | undefined => vscode.workspace.getConfiguration
 (
     makeConfigurationSection ( entry . id ) ,
     getConfigurationScope ( configurationTarget )
 )
-. get
+. get < T >
 (
     makeConfigurationKey ( entry . id )
 );
@@ -181,7 +181,44 @@ export const hasType = ( entry : SettingsEntry , type : PrimaryConfigurationType
     Array . isArray ( entry . type ) ?
         0 <= ( < PrimaryConfigurationType [ ] > entry . type ) . indexOf ( type ) :
         < PrimaryConfigurationType > entry . type === type ;
-export const makeEditSettingValueItemList = ( entry : SettingsEntry ) =>
+export const editSettingValue =
+async (
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry ,
+    validateInput : ( input: string ) => string | undefined | null | Thenable<string | undefined | null>,
+    parser : ( input : string ) => unknown
+) =>
+{
+    const input = await vscode.window.showInputBox
+    ({
+        value: undefinedOrString ( await getConfiguration ( configurationTarget , overridable , entry ) ) ,
+        validateInput
+    });
+    if (undefined !== input)
+    {
+        const value = parser ( input ) ;
+        if (undefined !== value)
+        {
+            await setConfiguration
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                value
+            );
+        }
+    }
+};
+export const undefinedOrString = ( value : any ) => undefined === value ?
+    undefined :
+    `${ "object" === typeof value ? JSON . stringify ( value ) : value }`;
+export const makeEditSettingValueItemList =
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry
+) : CommandMenuItem [ ] =>
 {
     const result : CommandMenuItem [ ] = [ ];
     if ( undefined === entry . enum && hasType ( entry , "string" ) )
@@ -189,21 +226,76 @@ export const makeEditSettingValueItemList = ( entry : SettingsEntry ) =>
         result.push
         ({
             label : "$(edit) Input string",
-            command : async ( ) =>
-            {
-
-            }
+            command : async ( ) => await editSettingValue
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                ( ) => undefined,
+                input => input
+            )
         });
     }
-    if ( hasType ( entry , "integer" ) || hasType ( entry , "number" ) )
+    if ( hasType ( entry , "integer" ) )
+    {
+        result.push
+        ({
+            label : "$(edit) Input integer",
+            command : async ( ) => await editSettingValue
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                input =>
+                {
+                    const value = parseInt ( input );
+                    if ( isNaN ( value ) || value !== parseFloat ( input ) )
+                    {
+                        return "invalid integer";
+                    }
+                    if ( undefined !== entry . minimum && value < entry . minimum )
+                    {
+                        return `minimum: ${ entry . minimum}` ;
+                    }
+                    if ( undefined !== entry . maximum && entry . maximum < value )
+                    {
+                        return `maximum: ${ entry . maximum}` ;
+                    }
+                    return undefined ;
+                },
+                input => parseInt ( input )
+            )
+        });
+    }
+    if ( hasType ( entry , "number" ) )
     {
         result.push
         ({
             label : "$(edit) Input number",
-            command : async ( ) =>
-            {
-
-            }
+            command : async ( ) => await editSettingValue
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                input =>
+                {
+                    const value = parseFloat ( input );
+                    if ( isNaN ( value ) )
+                    {
+                        return "invalid number" ;
+                    }
+                    if ( undefined !== entry . minimum && value < entry . minimum )
+                    {
+                        return `minimum: ${ entry . minimum}` ;
+                    }
+                    if ( undefined !== entry . maximum && entry . maximum < value )
+                    {
+                        return `maximum: ${ entry . maximum}` ;
+                    }
+                    return undefined ;
+                },
+                input => parseFloat ( input )
+            )
         });
     }
     if ( hasType ( entry , "object" ) )
@@ -211,10 +303,33 @@ export const makeEditSettingValueItemList = ( entry : SettingsEntry ) =>
         result.push
         ({
             label : "$(edit) Input object",
-            command : async ( ) =>
-            {
-
-            }
+            command : async ( ) => await editSettingValue
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                input =>
+                {
+                    try
+                    {
+                        const value = JSON . parse ( input ) ;
+                        if ( "object" !== typeof value )
+                        {
+                            return "invalid object" ;
+                        }
+                        if ( Array . isArray ( value ) )
+                        {
+                            return "invalid object" ;
+                        }
+                    }
+                    catch
+                    {
+                        return "invalid object" ;
+                    }
+                    return undefined ;
+                },
+                input => JSON . parse ( input )
+            )
         });
     }
     return result ;
@@ -228,12 +343,27 @@ export const editSettingItem = async (
 (
     await vscode . window . showQuickPick
     (
-        makeEditSettingValueItemList
+        [
+            <CommandMenuItem>
+            {
+                label : "$(discard) Reset",
+                command : async ( ) => await setConfiguration
+                (
+                    configurationTarget ,
+                    overridable ,
+                    entry ,
+                    undefined
+                )
+            }
+        ]
+        .concat
         (
-            entry
-        )
-        . concat
-        (
+            makeEditSettingValueItemList
+            (
+                configurationTarget ,
+                overridable ,
+                entry
+            ),
             makeSettingValueItemListFromList
             (
                 configurationTarget ,
@@ -243,7 +373,7 @@ export const editSettingItem = async (
             )
         ),
         {
-
+            placeHolder: `${ makeSettingLabel ( entry ) } ( ${ entry . id } ) :`
         }
     )
 ) ?. command ( ) ;
@@ -292,25 +422,25 @@ export const editSettings = async (
     (
         aggregateSettings ( ) . map
         (
-            i =>
+            entry =>
             ({
-                label : makeSettingLabel ( i ) ,
+                label : makeSettingLabel ( entry ) ,
                 description : makeEditSettingDescription
                 (
-                    i,
+                    entry,
                     getConfiguration
                     (
                         configurationTarget ,
                         overridable ,
-                        i
+                        entry
                     )
                 ),
-                detail : i . description ,
+                detail : entry . description ,
                 command : async ( ) => await editSettingItem
                 (
                     configurationTarget ,
                     overridable ,
-                    i
+                    entry
                 ) ,
             })
         ) ,
