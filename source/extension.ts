@@ -12,6 +12,7 @@ interface PackageJsonConfigurationProperty
     maximum ?: number ;
     overridable ?: boolean ;
     description ?: string ;
+    enumDescriptions ?: string [ ] ;
 }
 interface PackageJsonConfiguration
 {
@@ -129,10 +130,12 @@ export const makeSettingValueItem = < T >
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean ,
     entry : SettingsEntry ,
-    value : T
+    value : T,
+    detail ? : string
 ) =>
 ({
     label : `$(tag) ${ JSON . stringify ( value ) }` ,
+    detail,
     command : async () => await setConfiguration
     (
         configurationTarget ,
@@ -141,22 +144,57 @@ export const makeSettingValueItem = < T >
         value
     )
 });
-export const makeSettingValueItemListFromList = < T >
+export const makeSettingValueItemListFromList =
 (
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean ,
-    entry : SettingsEntry ,
-    valueList : T [ ]
-) => valueList . map
-(
-    value => makeSettingValueItem
+    entry : SettingsEntry
+) : CommandMenuItem [ ] =>
+{
+    const result : CommandMenuItem [ ] = [ ];
+    const register = ( value : any , description ? : string ) => result . push
     (
-        configurationTarget ,
-        overridable ,
-        entry ,
-        value
-    )
-) ;
+        makeSettingValueItem
+        (
+            configurationTarget ,
+            overridable ,
+            entry ,
+            value ,
+            description
+        )
+    ) ;
+    const types = ( "string" === typeof entry . type ? [ entry . type ]: entry . type  );
+    register ( getDefaultValue ( entry ) , "default" ) ;
+    if ( 0 <= types . indexOf ( "null" ) )
+    {
+        register ( null ) ;
+    }
+    if ( 0 <= types . indexOf ("boolean") )
+    {
+        register ( false ) ;
+        register ( true ) ;
+    }
+    if ( undefined !== entry . minimum )
+    {
+        register ( entry . minimum , "minimum" ) ;
+    }
+    if ( undefined !== entry . maximum )
+    {
+        register ( entry . maximum , "maximum" ) ;
+    }
+    if ( entry . enum )
+    {
+        entry . enum . forEach
+        (
+            ( value , index ) => register
+            (
+                value ,
+                entry ?. enumDescriptions ?. [ index ]
+            )
+        ) ;
+    }
+    return result;
+};
 export const makeSettingValueList = ( entry : SettingsEntry ) : unknown [ ] =>
 {
     const result : unknown [ ] = [ ];
@@ -170,6 +208,14 @@ export const makeSettingValueList = ( entry : SettingsEntry ) : unknown [ ] =>
     {
         result . push ( false ) ;
         result . push ( true ) ;
+    }
+    if ( undefined !== entry . minimum )
+    {
+        result . push ( entry . minimum ) ;
+    }
+    if ( undefined !== entry . maximum )
+    {
+        result . push ( entry . maximum ) ;
     }
     if ( entry . enum )
     {
@@ -368,8 +414,7 @@ export const editSettingItem = async (
             (
                 configurationTarget ,
                 overridable ,
-                entry ,
-                makeSettingValueList(entry)
+                entry
             )
         ),
         {
