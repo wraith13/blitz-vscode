@@ -40,6 +40,10 @@ interface SettingsEntry extends PackageJsonConfigurationProperty
     id : string ;
 } ;
 const vscodeSettings : SettingsEntry [ ] = [ ] ;
+export interface CommandMenuItem extends vscode.QuickPickItem
+{
+    command : () => Promise < unknown > ;
+}
 export const getDefaultValue = ( entry : SettingsEntry ) =>
 {
     if ( undefined !== entry . default )
@@ -128,7 +132,7 @@ export const makeSettingValueItem = < T >
     value : T
 ) =>
 ({
-    label : JSON . stringify ( value ) ,
+    label : `$(tag) ${ JSON . stringify ( value ) }` ,
     command : async () => await setConfiguration
     (
         configurationTarget ,
@@ -153,34 +157,7 @@ export const makeSettingValueItemListFromList = < T >
         value
     )
 ) ;
-export const makeSettingValueItemListForEnum =
-(
-    configurationTarget : vscode . ConfigurationTarget ,
-    overridable : boolean ,
-    entry : SettingsEntry
-) => makeSettingValueItemListFromList
-(
-    configurationTarget ,
-    overridable ,
-    entry ,
-    entry . enum ?? [ ]
-) ;
-export const makeSettingValueItemListForBoolean =
-(
-    configurationTarget : vscode . ConfigurationTarget ,
-    overridable : boolean ,
-    entry : SettingsEntry
-) => makeSettingValueItemListFromList
-(
-    configurationTarget ,
-    overridable ,
-    entry ,
-    [ false , true ]
-) ;
-export const makeSettingValueList =
-(
-    entry : SettingsEntry
-): unknown [ ] =>
+export const makeSettingValueList = ( entry : SettingsEntry ) : unknown [ ] =>
 {
     const result : unknown [ ] = [ ];
     const types = ( "string" === typeof entry . type ? [ entry . type ]: entry . type  );
@@ -200,6 +177,48 @@ export const makeSettingValueList =
     }
     return result . filter ( ( i , index ) => index === result . indexOf ( i ) ) ;
 };
+export const hasType = ( entry : SettingsEntry , type : PrimaryConfigurationType ) =>
+    Array . isArray ( entry . type ) ?
+        0 <= ( < PrimaryConfigurationType [ ] > entry . type ) . indexOf ( type ) :
+        < PrimaryConfigurationType > entry . type === type ;
+export const makeEditSettingValueItemList = ( entry : SettingsEntry ) =>
+{
+    const result : CommandMenuItem [ ] = [ ];
+    if ( undefined === entry . enum && hasType ( entry , "string" ) )
+    {
+        result.push
+        ({
+            label : "$(edit) Input string",
+            command : async ( ) =>
+            {
+
+            }
+        });
+    }
+    if ( hasType ( entry , "integer" ) || hasType ( entry , "number" ) )
+    {
+        result.push
+        ({
+            label : "$(edit) Input number",
+            command : async ( ) =>
+            {
+
+            }
+        });
+    }
+    if ( hasType ( entry , "object" ) )
+    {
+        result.push
+        ({
+            label : "$(edit) Input object",
+            command : async ( ) =>
+            {
+
+            }
+        });
+    }
+    return result ;
+};
 export const editSettingItem = async (
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean ,
@@ -209,12 +228,19 @@ export const editSettingItem = async (
 (
     await vscode . window . showQuickPick
     (
-        makeSettingValueItemListFromList
+        makeEditSettingValueItemList
         (
-            configurationTarget ,
-            overridable ,
-            entry ,
-            makeSettingValueList(entry)
+            entry
+        )
+        . concat
+        (
+            makeSettingValueItemListFromList
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                makeSettingValueList(entry)
+            )
         ),
         {
 
