@@ -1,18 +1,20 @@
 import * as vscode from 'vscode';
-type PrimaryConfigurationType = "null" | "string" | "boolean" | "integer" | "number" | "array" | "object" ;
+type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object" ;
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType [ ] ;
 interface PackageJsonConfigurationProperty
 {
     type : ConfigurationType ;
-    scope : string ;
-    default : any ;
-    items : PackageJsonConfiguration ;
+    scope ?: string ;
+    default ?: any ;
+    items ?: PackageJsonConfiguration ;
     enum ?: string [ ] ;
     minimum ?: number ;
     maximum ?: number ;
     overridable ?: boolean ;
     description ?: string ;
     enumDescriptions ?: string [ ] ;
+    markdownDescription ?: string ;
+    tags ?: string [ ] ;
 }
 interface PackageJsonConfiguration
 {
@@ -20,7 +22,7 @@ interface PackageJsonConfiguration
     order ?: number,
     type ?: ConfigurationType,
     title : string;
-    properties : { [ key : string ] : PackageJsonConfigurationProperty }
+    properties : { [ key : string ] : PackageJsonConfigurationProperty } ;
 }
 interface PackageJsonContributes
 {
@@ -60,11 +62,11 @@ export const getDefaultValue = ( entry : SettingsEntry ) =>
     {
     case "boolean" :
         return false ;
+    case "string" :
+        return "" ;
     case "integer" :
     case "number" :
         return 0 ;
-    case "string" :
-        return "" ;
     case "array" :
         return [ ] ;
     case "object" :
@@ -93,7 +95,23 @@ export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
     . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
 export const makeConfigurationSection = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ;
 export const makeConfigurationKey = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) ;
-export const aggregateSettings = ( ) => vscodeSettings . concat ( extensionSettings ( ) ) ;
+export const aggregateSettings = ( ) => vscodeSettings
+    . map
+    (
+        i => Object . keys ( i . properties ) . map
+        (
+            id => Object . assign
+            (
+                {
+                    title : i . title ,
+                    id ,
+                } ,
+                i . properties [ id ]
+            )
+        )
+    )
+    . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) 
+    . concat ( extensionSettings ( ) ) ;
 export const getConfiguration = < T >
 (
     configurationTarget : vscode . ConfigurationTarget ,
@@ -192,7 +210,6 @@ export const makeSettingValueItemListFromList =
     {
         register ( entry . minimum , "minimum" ) ;
     }
-    register ( getDefaultValue ( entry ) , "default" ) ;
     if ( undefined !== entry . maximum )
     {
         register ( entry . maximum , "maximum" ) ;
@@ -209,6 +226,89 @@ export const makeSettingValueItemListFromList =
             )
         ) ;
     }
+    register ( getDefaultValue ( entry ) , "default" ) ;
+    register ( getConfiguration ( configurationTarget , overridable , entry ) , "current" ) ;
+    const typeIndexOf = ( value : any ) =>
+    {
+        switch ( typeof value )
+        {
+        case "boolean" :
+            return 1 ;
+        case "string" :
+            return 2 ;
+        case "number" :
+            return 3 ;
+        case "object" :
+            return Array . isArray ( value ) ? 4 : 5 ;
+        default :
+            return 0;
+        }
+    };
+    list . sort
+    (
+        ( a , b ) =>
+        {
+            const aTypeIndex = typeIndexOf ( a . value ) ;
+            const bTypeIndex = typeIndexOf ( b . value ) ;
+            if ( aTypeIndex < bTypeIndex )
+            {
+                return -1 ;
+            }
+            if ( aTypeIndex > bTypeIndex )
+            {
+                return 1 ;
+            }
+            if ( entry . enum )
+            {
+                const aEnumIndex = entry . enum . indexOf ( a . value );
+                const bEnumIndex = entry . enum . indexOf ( b . value );
+                if ( aEnumIndex < bEnumIndex )
+                {
+                    return -1 ;
+                }
+                if ( aEnumIndex > bEnumIndex )
+                {
+                    return 1 ;
+                }
+            }
+            if ( "number" === typeof a . value && "number" === typeof b . value )
+            {
+                if ( a < b )
+                {
+                    return -1 ;
+                }
+                if ( a > b )
+                {
+                    return 1 ;
+                }
+            }
+            if ( "string" === typeof a . value && "string" === typeof b . value )
+            {
+                if ( a < b )
+                {
+                    return -1 ;
+                }
+                if ( a > b )
+                {
+                    return 1 ;
+                }
+            }
+            if ( "object" === typeof a . value && "object" === typeof b . value )
+            {
+                const aJson = JSON . stringify ( a . value );
+                const bJson = JSON . stringify ( b . value );
+                if ( aJson < bJson )
+                {
+                    return -1 ;
+                }
+                if ( aJson > bJson )
+                {
+                    return 1 ;
+                }
+            }
+            return 0 ;
+        }
+    ) ;
     return list . map
     (
         i => makeSettingValueItem
@@ -221,34 +321,6 @@ export const makeSettingValueItemListFromList =
             i . detail
         )
     );
-};
-export const makeSettingValueList = ( entry : SettingsEntry ) : unknown [ ] =>
-{
-    const result : unknown [ ] = [ ];
-    const types = ( "string" === typeof entry . type ? [ entry . type ]: entry . type  );
-    result . push ( getDefaultValue ( entry ) ) ;
-    if ( 0 <= types . indexOf ( "null" ) )
-    {
-        result . push ( null ) ;
-    }
-    if ( 0 <= types . indexOf ("boolean") )
-    {
-        result . push ( false ) ;
-        result . push ( true ) ;
-    }
-    if ( undefined !== entry . minimum )
-    {
-        result . push ( entry . minimum ) ;
-    }
-    if ( undefined !== entry . maximum )
-    {
-        result . push ( entry . maximum ) ;
-    }
-    if ( entry . enum )
-    {
-        entry . enum . forEach ( i => result . push ( i ) ) ;
-    }
-    return result . filter ( ( i , index ) => index === result . indexOf ( i ) ) ;
 };
 export const hasType = ( entry : SettingsEntry , type : PrimaryConfigurationType ) =>
     Array . isArray ( entry . type ) ?
