@@ -131,11 +131,13 @@ export const makeSettingValueItem = < T >
     overridable : boolean ,
     entry : SettingsEntry ,
     value : T,
+    description ? : string ,
     detail ? : string
 ) =>
 ({
     label : `$(tag) ${ JSON . stringify ( value ) }` ,
-    detail,
+    description ,
+    detail ,
     command : async () => await setConfiguration
     (
         configurationTarget ,
@@ -151,33 +153,46 @@ export const makeSettingValueItemListFromList =
     entry : SettingsEntry
 ) : CommandMenuItem [ ] =>
 {
-    const result : CommandMenuItem [ ] = [ ];
-    const register = ( value : any , description ? : string ) => result . push
-    (
-        makeSettingValueItem
-        (
-            configurationTarget ,
-            overridable ,
-            entry ,
-            value ,
-            description
-        )
-    ) ;
+    const list : { value : any , description : string [ ] , detail ? : string } [ ] = [ ] ;
+    const register = ( value : any , description ? : string , detail ? : string ) =>
+    {
+        const item = list . filter ( i => i . value === value ) [ 0 ] ;
+        if (item)
+        {
+            if ( undefined !== description )
+            {
+                item . description . push ( description ) ;
+            }
+            if ( undefined !== detail )
+            {
+                item . detail = detail ;
+            }
+        }
+        else
+        {
+            list . push
+            ({
+                value ,
+                description : undefined !== description ? [ description ] : [ ] ,
+                detail ,
+            }) ;
+        }
+    } ;
     const types = ( "string" === typeof entry . type ? [ entry . type ]: entry . type  );
-    register ( getDefaultValue ( entry ) , "default" ) ;
     if ( 0 <= types . indexOf ( "null" ) )
     {
         register ( null ) ;
     }
     if ( 0 <= types . indexOf ("boolean") )
     {
-        register ( false ) ;
         register ( true ) ;
+        register ( false ) ;
     }
     if ( undefined !== entry . minimum )
     {
         register ( entry . minimum , "minimum" ) ;
     }
+    register ( getDefaultValue ( entry ) , "default" ) ;
     if ( undefined !== entry . maximum )
     {
         register ( entry . maximum , "maximum" ) ;
@@ -189,11 +204,23 @@ export const makeSettingValueItemListFromList =
             ( value , index ) => register
             (
                 value ,
+                undefined ,
                 entry ?. enumDescriptions ?. [ index ]
             )
         ) ;
     }
-    return result;
+    return list . map
+    (
+        i => makeSettingValueItem
+        (
+            configurationTarget ,
+            overridable ,
+            entry ,
+            i . value ,
+            0 < i . description .length ? i . description . join ( ", " ) : undefined ,
+            i . detail
+        )
+    );
 };
 export const makeSettingValueList = ( entry : SettingsEntry ) : unknown [ ] =>
 {
