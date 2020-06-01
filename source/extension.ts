@@ -14,6 +14,7 @@ interface PackageJsonConfigurationProperty
     description ?: string ;
     enumDescriptions ?: string [ ] ;
     markdownDescription ?: string ;
+    markdownEnumDescriptions ?: string [ ] ;
     tags ?: string [ ] ;
 }
 interface PackageJsonConfiguration
@@ -164,7 +165,7 @@ export const makeSettingValueItem = < T >
         value
     )
 });
-export const makeSettingValueItemListFromList =
+export const makeSettingValueItemList =
 (
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean ,
@@ -443,6 +444,40 @@ export const makeEditSettingValueItemList =
             )
         });
     }
+    if ( hasType ( entry , "array" ) )
+    {
+        result.push
+        ({
+            label : "$(edit) Input array",
+            command : async ( ) => await editSettingValue
+            (
+                configurationTarget ,
+                overridable ,
+                entry ,
+                input =>
+                {
+                    try
+                    {
+                        const value = JSON . parse ( input ) ;
+                        if ( "object" !== typeof value )
+                        {
+                            return "invalid array" ;
+                        }
+                        if ( ! Array . isArray ( value ) )
+                        {
+                            return "invalid array" ;
+                        }
+                    }
+                    catch
+                    {
+                        return "invalid array" ;
+                    }
+                    return undefined ;
+                },
+                input => JSON . parse ( input )
+            )
+        });
+    }
     if ( hasType ( entry , "object" ) )
     {
         result.push
@@ -509,7 +544,7 @@ export const editSettingItem = async (
                 overridable ,
                 entry
             ),
-            makeSettingValueItemListFromList
+            makeSettingValueItemList
             (
                 configurationTarget ,
                 overridable ,
