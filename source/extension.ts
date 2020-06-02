@@ -40,14 +40,26 @@ interface PackageJson
 } ;
 interface SettingsEntry extends PackageJsonConfigurationProperty
 {
-    title : string ;
+    //title ? : string ;
     id : string ;
 } ;
-const vscodeSettings : SettingsEntry [ ] = [ ] ;
+interface SchemasSettingsDefault
+    patternProperties : unknown ;
+    additionalProperties : boolean ;
+    allowTrailingCommas : boolean ;
+    allowComments : boolean ;
+} ;
+//const vscodeSettings = <PackageJsonConfiguration [ ]><any>vscodeConfigurationWindowJson; // ここの any を取るとエラーになるが、 TypeScript のバグっぽいので気にしない・・・が、型検査が行われなくなってしまうのは辛いところ。
+const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse ( ( await vscode . workspace . openTextDocument ( vscode . Uri . parse ( "vscode://schemas/settings/default") ) ) . getText ( ) ) ;
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
     command : () => Promise < unknown > ;
 }
+export const monitor = async () =>
+{
+    const document = await vscode.workspace.openTextDocument(vscode.Uri.parse("vscode://schemas/settings/default"));
+    console.log(`vscode://schemas/settings/default: ${JSON.stringify(document.getText())}`);
+};
 export const getDefaultValue = ( entry : SettingsEntry ) =>
 {
     if ( undefined !== entry . default )
@@ -100,23 +112,21 @@ export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions 
     . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) ;
 export const makeConfigurationSection = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$1" ) ;
 export const makeConfigurationKey = ( id : string ) => id . replace ( /^(.*)(\.)([^.]*)$/ , "$3" ) ;
-export const aggregateSettings = ( ) => vscodeSettings
-    . map
-    (
-        i => Object . keys ( i . properties ) . map
+export const aggregateSettings = async ( ) =>
+{
+    const vscodeSettings = await getVscodeSettings ( ) ;
+    return Object . keys ( vscodeSettings . properties )
+        . map
         (
             id => Object . assign
             (
                 {
-                    title : i . title ,
                     id ,
                 } ,
-                i . properties [ id ]
+                vscodeSettings . properties [ id ]
             )
-        )
-    )
-    . reduce ( ( a , b ) => a . concat ( b ) , [ ] ) 
-    . concat ( extensionSettings ( ) ) ;
+        ) ;
+} ;
 export const getConfiguration = < T >
 (
     configurationTarget : vscode . ConfigurationTarget ,
@@ -327,7 +337,7 @@ export const makeSettingValueItemList =
         )
     );
 };
-export const hasType = ( entry : SettingsEntry , type : PrimaryConfigurationType ) =>
+export const hasType = ( entry : SettingsEntry | PackageJsonConfiguration , type : PrimaryConfigurationType ) =>
     Array . isArray ( entry . type ) ?
         0 <= ( < PrimaryConfigurationType [ ] > entry . type ) . indexOf ( type ) :
         < PrimaryConfigurationType > entry . type === type ;
@@ -526,48 +536,75 @@ export const makeSettingValueEditArrayItemList =
 ) : CommandMenuItem [ ] =>
 {
     const result : CommandMenuItem [ ] = [ ];
-    const array = getConfiguration < string [ ] >
-    (
-        configurationTarget ,
-        overridable ,
-        entry
-    ) ?? [ ] ;
-    result . push
-    ({
-        label: `$(add) Add string item`,
-        command: async () =>
+    if ( hasType ( entry , "array" ) )
+    {
+        const array = getConfiguration < any [ ] >
+        (
+            configurationTarget ,
+            overridable ,
+            entry
+        ) ?? [ ] ;
+        if ( Array . isArray ( array ) )
         {
-            const input = await vscode.window.showInputBox ({ }) ;
-            if (undefined !== input)
+            if ( entry . items ?. type && hasType ( entry . items , "null" ) )
             {
-                array . push ( input ) ;
-                await setConfiguration
-                (
-                    configurationTarget ,
-                    overridable ,
-                    entry ,
-                    array
-                );
+                result . push
+                ({
+                    label: `$(add) Add null item`,
+                    command: async () =>
+                    {
+                        array . push ( null ) ;
+                        await setConfiguration
+                        (
+                            configurationTarget ,
+                            overridable ,
+                            entry ,
+                            array
+                        );
+                    }
+                });
             }
+            if ( ! entry . items ?. type || hasType ( entry . items , "string" ) )
+            {
+                result . push
+                ({
+                    label: `$(add) Add string item`,
+                    command: async () =>
+                    {
+                        const input = await vscode.window.showInputBox ({ }) ;
+                        if (undefined !== input)
+                        {
+                            array . push ( input ) ;
+                            await setConfiguration
+                            (
+                                configurationTarget ,
+                                overridable ,
+                                entry ,
+                                array
+                            );
+                        }
+                    }
+                });
+            }
+            array . forEach
+            (
+                ( item , index ) => result . push
+                ({
+                    label: `$(remove) Remove "${ undefinedOrString ( item ) }"`,
+                    command: async () =>
+                    {
+                        await setConfiguration
+                        (
+                            configurationTarget ,
+                            overridable ,
+                            entry ,
+                            array . splice ( index , 1 )
+                        );
+                    }
+                })
+            );
         }
-    });
-    array . forEach
-    (
-        ( text , index ) => result . push
-        ({
-            label: `$(remove) Remove "${ text }"`,
-            command: async () =>
-            {
-                await setConfiguration
-                (
-                    configurationTarget ,
-                    overridable ,
-                    entry ,
-                    array . splice ( index , 1 )
-                );
-            }
-        })
-    );
+    }
     return result ;
 };
 export const editSettingItem = async (
@@ -620,12 +657,13 @@ export const editSettingItem = async (
 ) ?. command ( ) ;
 export const makeSettingLabel = ( entry : SettingsEntry ) =>
 {
-    const title = `${ entry . title }: `;
+    //const title = `${ entry . title }: `;
     const base = entry . id
         . replace ( /\./mg , ": " )
         . replace ( /([a-z0-9])([A-Z])/g , "$1 $2" )
         . replace ( /(^|\s)([a-z])/g , (_s,m1,m2)=>`${m1}${m2.toUpperCase()}` ) ;
-    return base . startsWith ( title ) ? base : `${title}${base}` ;
+    //return base . startsWith ( title ) ? base : `${title}${base}` ;
+    return base ;
 };
 export const getConfigurationScope = ( configurationTarget : vscode . ConfigurationTarget ) =>
 {
@@ -661,7 +699,7 @@ export const editSettings = async (
 (
     await vscode .window . showQuickPick
     (
-        aggregateSettings ( ) . map
+        ( await aggregateSettings ( ) ) . map
         (
             entry =>
             ({
