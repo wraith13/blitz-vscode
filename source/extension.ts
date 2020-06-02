@@ -76,6 +76,10 @@ export const getDefaultValue = ( entry : SettingsEntry ) =>
         return null ;
     }
 };
+export const markdownToPlaintext = ( markdown : string | undefined ) =>
+    undefined === markdown ?
+        undefined :
+        markdown . replace ( /`#([a-zA-Z_0-9\-\.]+)#`/mg , "`$1`" ) ;
 export const extensionSettings = ( ) : SettingsEntry [ ] => vscode . extensions . all
     . map ( i => ( < PackageJson > i ?. packageJSON ) ?. contributes ?. configuration )
     . filter ( i => i ?. properties )
@@ -175,7 +179,7 @@ export const makeSettingValueItemList =
     const list : { value : any , description : string [ ] , detail ? : string } [ ] = [ ] ;
     const register = ( value : any , description ? : string , detail ? : string ) =>
     {
-        const item = list . filter ( i => i . value === value ) [ 0 ] ;
+        const item = list . filter ( i => JSON . stringify ( i . value ) === JSON . stringify ( value ) ) [ 0 ] ;
         if (item)
         {
             if ( undefined !== description )
@@ -223,7 +227,7 @@ export const makeSettingValueItemList =
             (
                 value ,
                 undefined ,
-                entry ?. enumDescriptions ?. [ index ]
+                entry ?. enumDescriptions ?. [ index ] ?? markdownToPlaintext ( entry ?. markdownEnumDescriptions ?. [ index ] )
             )
         ) ;
     }
@@ -514,6 +518,58 @@ export const makeEditSettingValueItemList =
     }
     return result ;
 };
+export const makeSettingValueEditArrayItemList =
+(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overridable : boolean ,
+    entry : SettingsEntry
+) : CommandMenuItem [ ] =>
+{
+    const result : CommandMenuItem [ ] = [ ];
+    const array = getConfiguration < string [ ] >
+    (
+        configurationTarget ,
+        overridable ,
+        entry
+    ) ?? [ ] ;
+    result . push
+    ({
+        label: `$(add) Add string item`,
+        command: async () =>
+        {
+            const input = await vscode.window.showInputBox ({ }) ;
+            if (undefined !== input)
+            {
+                array . push ( input ) ;
+                await setConfiguration
+                (
+                    configurationTarget ,
+                    overridable ,
+                    entry ,
+                    array
+                );
+            }
+        }
+    });
+    array . forEach
+    (
+        ( text , index ) => result . push
+        ({
+            label: `$(remove) Remove "${ text }"`,
+            command: async () =>
+            {
+                await setConfiguration
+                (
+                    configurationTarget ,
+                    overridable ,
+                    entry ,
+                    array . splice ( index , 1 )
+                );
+            }
+        })
+    );
+    return result ;
+};
 export const editSettingItem = async (
     configurationTarget : vscode . ConfigurationTarget ,
     overridable : boolean ,
@@ -545,6 +601,12 @@ export const editSettingItem = async (
                 entry
             ),
             makeSettingValueItemList
+            (
+                configurationTarget ,
+                overridable ,
+                entry
+            ),
+            makeSettingValueEditArrayItemList
             (
                 configurationTarget ,
                 overridable ,
@@ -614,7 +676,7 @@ export const editSettings = async (
                         entry
                     )
                 ),
-                detail : entry . description ,
+                detail : entry . description ?? markdownToPlaintext ( entry . markdownDescription ) ,
                 command : async ( ) => await editSettingItem
                 (
                     configurationTarget ,
