@@ -1,10 +1,26 @@
 import * as vscode from 'vscode';
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object" ;
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType [ ] ;
+// copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110
+export const enum ConfigurationScope
+{
+    // Application specific configuration, which can be configured only in local user settings.
+    APPLICATION = 1,
+    // Machine specific configuration, which can be configured only in local and remote user settings.
+    MACHINE,
+    // Window specific configuration, which can be configured in the user or workspace settings.
+    WINDOW,
+    // Resource specific configuration, which can be configured in the user, workspace or folder settings.
+    RESOURCE,
+    // Resource specific configuration that can be configured in language specific settings
+    LANGUAGE_OVERRIDABLE,
+    // Machine specific configuration that can also be configured in workspace or folder settings.
+    MACHINE_OVERRIDABLE,
+} ;
 interface PackageJsonConfigurationProperty
 {
     type : ConfigurationType ;
-    scope ?: string ;
+    scope ?: ConfigurationScope ;
     default ?: any ;
     items ?: PackageJsonConfiguration ;
     enum ?: string [ ] ;
@@ -628,18 +644,20 @@ export const makeSettingValueEditArrayItemList =
     }
     return result ;
 };
+
 export const selectContext = async ( entry : SettingsEntry ) =>
 {
     const contextMenuItemList : CommandMenuItem [ ] = [ ] ;
     const languageId = getLanguageId ( ) ;
     const values = inspectConfiguration ( vscode . ConfigurationTarget . WorkspaceFolder , true , entry ) ;
-    console . log ( `inpect: ${ JSON . stringify ( values ) }` ) ;
-    console . log ( `vscode . workspace . workspaceFile : ${ JSON . stringify ( vscode . workspace . workspaceFile ) }` ) ;
-    if ( vscode.workspace.workspaceFolders || languageId )
+    const workspaceOverridable = 0 < ( vscode . workspace . workspaceFolders ?.length ?? 0 )  && ( undefined === entry . scope || ( ConfigurationScope . APPLICATION !== entry . scope && ConfigurationScope . MACHINE !== entry . scope ) )
+    const workspaceFolderOverridable = 1 < ( vscode . workspace . workspaceFolders ?.length ?? 0 ) && ( undefined === entry . scope || ( ConfigurationScope . APPLICATION !== entry . scope && ConfigurationScope . MACHINE !== entry . scope && ConfigurationScope . WINDOW !== entry . scope ) )
+    const languageOverridable = languageId && ( entry . overridable || undefined === entry . scope || ConfigurationScope . LANGUAGE_OVERRIDABLE === entry . scope )
+    if ( workspaceOverridable || workspaceFolderOverridable || languageOverridable )
     {
         contextMenuItemList . push
         ({
-            label : `Global: ${ forceString ( values ?. globalValue ) }` ,
+            label : `Global: ${ forceString ( undefined !== ( values ?. globalValue ) ? values ?. globalValue : values ?. defaultValue ) }` ,
             command : async ( ) => await editSettingItem
             (
                 vscode . ConfigurationTarget . Global ,
@@ -647,21 +665,21 @@ export const selectContext = async ( entry : SettingsEntry ) =>
                 entry
             )
         }) ;
-        if ( vscode.workspace.workspaceFolders )
+        if ( workspaceOverridable )
         {
-            if ( vscode . workspace . workspaceFile )
-            {
-                contextMenuItemList . push
-                ({
-                    label : `WorkspaceFolder: ${ forceString ( values ?. workspaceValue ) }` ,
-                    command : async ( ) => await editSettingItem
-                    (
-                        vscode . ConfigurationTarget . Workspace ,
-                        false ,
-                        entry
-                    )
-                }) ;
-            }
+            contextMenuItemList . push
+            ({
+                label : `WorkspaceFolder: ${ forceString ( values ?. workspaceValue ) }` ,
+                command : async ( ) => await editSettingItem
+                (
+                    vscode . ConfigurationTarget . Workspace ,
+                    false ,
+                    entry
+                )
+            }) ;
+        }
+        if ( workspaceFolderOverridable )
+        {
             contextMenuItemList . push
             ({
                 label : `WorkspaceFolder: ${ forceString ( values ?. workspaceFolderValue ) }` ,
@@ -673,11 +691,11 @@ export const selectContext = async ( entry : SettingsEntry ) =>
                 )
             }) ;
         }
-        if ( languageId )
+        if ( languageOverridable )
         {
             contextMenuItemList . push
             ({
-                label : `Global(lang:${languageId}): ${ forceString ( values ?. globalLanguageValue ) }` ,
+                label : `Global(lang:${languageId}): ${ forceString ( undefined !== ( values ?. globalLanguageValue ) ? values ?. globalLanguageValue : values ?. defaultLanguageValue ) }` ,
                 command : async ( ) => await editSettingItem
                 (
                     vscode . ConfigurationTarget . Global ,
@@ -685,21 +703,21 @@ export const selectContext = async ( entry : SettingsEntry ) =>
                     entry
                 )
             }) ;
-            if ( vscode.workspace.workspaceFolders )
+            if ( workspaceOverridable )
             {
-                if ( vscode . workspace . workspaceFile )
-                {
-                    contextMenuItemList . push
-                    ({
-                        label : `WorkspaceFolder(lang:${languageId}): ${ forceString ( values ?. workspaceLanguageValue ) }` ,
-                        command : async ( ) => await editSettingItem
-                        (
-                            vscode . ConfigurationTarget . Workspace ,
-                            true ,
-                            entry
-                        )
-                    }) ;
-                }
+                contextMenuItemList . push
+                ({
+                    label : `WorkspaceFolder(lang:${languageId}): ${ forceString ( values ?. workspaceLanguageValue ) }` ,
+                    command : async ( ) => await editSettingItem
+                    (
+                        vscode . ConfigurationTarget . Workspace ,
+                        true ,
+                        entry
+                    )
+                }) ;
+            }
+            if ( workspaceFolderOverridable )
+            {
                 contextMenuItemList . push
                 ({
                     label : `WorkspaceFolder(lang:${languageId}): ${ forceString ( values ?. workspaceFolderLanguageValue ) }` ,
@@ -711,7 +729,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
                     )
                 }) ;
             }
-        }
+    }
     }
     if ( 0 < contextMenuItemList . length )
     {
