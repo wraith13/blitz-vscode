@@ -66,7 +66,16 @@ interface SchemasSettingsDefault
     allowTrailingCommas : boolean ;
     allowComments : boolean ;
 } ;
-const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse ( ( await vscode . workspace . openTextDocument ( vscode . Uri . parse ( "vscode://schemas/settings/default") ) ) . getText ( ) ) ;
+const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse
+(
+    (
+        await vscode . workspace . openTextDocument
+        (
+            vscode . Uri . parse ( "vscode://schemas/settings/default" )
+        )
+    )
+    . getText ( )
+) ;
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
     command : () => Promise < unknown > ;
@@ -802,16 +811,10 @@ export const editSettingItem = async (
         }
     )
 ) ?. command ( ) ;
-export const makeSettingLabel = ( entry : SettingsEntry ) =>
-{
-    //const title = `${ entry . title }: `;
-    const base = entry . id
-        . replace ( /\./mg , ": " )
-        . replace ( /([a-z0-9])([A-Z])/g , "$1 $2" )
-        . replace ( /(^|\s)([a-z])/g , (_s,m1,m2)=>`${m1}${m2.toUpperCase()}` ) ;
-    //return base . startsWith ( title ) ? base : `${title}${base}` ;
-    return base ;
-};
+export const makeSettingLabel = ( entry : SettingsEntry ) =>　entry . id
+    . replace ( /\./mg , ": " )
+    . replace ( /([a-z0-9])([A-Z])/g , "$1 $2" )
+    . replace ( /(^|\s)([a-z])/g , ( _s , m1 , m2 ) =>　`${ m1 }${ m2 . toUpperCase ( ) }` ) ;
 export const makeConfigurationScope =
 (
     configurationTarget : vscode . ConfigurationTarget ,
@@ -837,24 +840,6 @@ export const makeConfigurationScope =
     }
     return undefined ;
 };
-/*
-export const getConfigurationScope = ( configurationTarget : vscode . ConfigurationTarget ) =>
-{
-    switch ( configurationTarget )
-    {
-    case vscode . ConfigurationTarget . Global :
-        return undefined;
-    case vscode . ConfigurationTarget . Workspace :
-        return vscode.workspace.workspaceFolders ?. [ 0 ] ;
-    case vscode . ConfigurationTarget . WorkspaceFolder :
-        const activeDocumentUri = vscode . window . activeTextEditor ?. document . uri ;
-        return activeDocumentUri ?
-            vscode . workspace . getWorkspaceFolder ( activeDocumentUri ) :
-            vscode . workspace . workspaceFolders ?. [ 0 ] ;
-    }
-    return undefined ;
-};
-*/
 export const getLanguageId = ( ) => vscode . window . activeTextEditor ?. document . languageId ;
 export const makeEditSettingDescription = ( entry : SettingsEntry, value : any ) =>
     (
