@@ -10,68 +10,14 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:blitz.editUserSettings",
-        "onCommand:blitz.editWorkspaceSettings",
-        "onCommand:blitz.editFolderSettings",
-        "onCommand:blitz.editUserOverrideSettings",
-        "onCommand:blitz.editWorkspaceOverrideSettings",
-        "onCommand:blitz.editFolderOverrideSettings"
+        "onCommand:blitz.editSettings"
     ],
     "main": "./out/extension.js",
     "contributes": {
-        "menus": {
-            "commandPalette": [
-                {
-                    "command": "blitz.editWorkspaceSettings",
-                    "when": "workbenchState == 'workspace'"
-                },
-                {
-                    "command": "blitz.editFolderSettings",
-                    "when": "workbenchState != 'empty'"
-                },
-                {
-                    "command": "blitz.editUserOverrideSettings",
-                    "when": "editorLangId"
-                },
-                {
-                    "command": "blitz.editWorkspaceOverrideSettings",
-                    "when": "editorLangId && workbenchState == 'workspace'"
-                },
-                {
-                    "command": "blitz.editFolderOverrideSettings",
-                    "when": "editorLangId && workbenchState != 'empty'"
-                }
-            ]
-        },
         "commands": [
             {
-                "command": "blitz.editUserSettings",
-                "title": "Edit User Settings",
-                "category": "Blitz"
-            },
-            {
-                "command": "blitz.editWorkspaceSettings",
-                "title": "Edit Workspace Settings",
-                "category": "Blitz"
-            },
-            {
-                "command": "blitz.editFolderSettings",
-                "title": "Edit Folder Settings",
-                "category": "Blitz"
-            },
-            {
-                "command": "blitz.editUserOverrideSettings",
-                "title": "Edit User Override Settings",
-                "category": "Blitz"
-            },
-            {
-                "command": "blitz.editWorkspaceOverrideSettings",
-                "title": "Edit Workspace Override Settings",
-                "category": "Blitz"
-            },
-            {
-                "command": "blitz.editFolderOverrideSettings",
-                "title": "Edit Folder Override Settings",
+                "command": "blitz.editSettings",
+                "title": "Edit Settings",
                 "category": "Blitz"
             }
         ]
