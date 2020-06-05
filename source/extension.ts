@@ -78,8 +78,62 @@ const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse
 ) ;
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
-    command : () => Promise < unknown > ;
+    preview ? : () => Promise < unknown > ;
+    command ? : () => Promise < unknown > ;
 }
+export interface QuickPickOptions extends vscode . QuickPickOptions
+{
+    rollback ? : () => Promise < unknown > ;
+}
+export const showQuickPick = async < T extends CommandMenuItem >
+(
+    items : T [ ] | Thenable < T [ ] > ,
+    options ? : QuickPickOptions ,
+    token ? : vscode . CancellationToken
+) =>
+{
+    let previewed = false ;
+    const result = await vscode . window . showQuickPick
+    (
+        items,
+        Object . assign
+        (
+            {
+                onDidSelectItem : async ( item : T ) =>
+                {
+                    if ( item . preview )
+                    {
+                        previewed = true ;
+                        await item . preview ( ) ;
+                    }
+                    else
+                    if ( previewed && options ?. rollback )
+                    {
+                        previewed = false ;
+                        await options . rollback ( ) ;
+                    }
+                }
+            },
+            options ?? { },
+        ),
+        token
+    ) ;
+    if ( result )
+    {
+        if ( result . command )
+        {
+            await result . command ( ) ;
+        }
+    }
+    else
+    {
+        if ( previewed && options ?. rollback )
+        {
+            await options . rollback ( ) ;
+        }
+    }
+    return result ;
+} ;
 export const getDefaultValue = ( entry : SettingsEntry ) =>
 {
     if ( undefined !== entry . default )
@@ -161,6 +215,51 @@ export const inspectConfiguration = < T >
 (
     makeConfigurationKey ( entry . id )
 );
+export const getValueFromInspectResult =
+<T>(
+    configurationTarget : vscode . ConfigurationTarget ,
+    overrideInLanguage : boolean ,
+    inspect :
+    {
+        key : string ,
+        defaultValue ? : T ,
+        globalValue ? : T ,
+        workspaceValue ? : T ,
+        workspaceFolderValue ? : T ,
+        defaultLanguageValue ? : T ,
+        globalLanguageValue ? : T ,
+        workspaceLanguageValue ? : T ,
+        workspaceFolderLanguageValue ? : T ,
+        languageIds ? : string [ ] ,
+    } | undefined
+) =>
+{
+    if ( ! overrideInLanguage )
+    {
+        switch ( configurationTarget )
+        {
+        case vscode . ConfigurationTarget . Global :
+            return inspect ?. globalValue ;
+        case vscode . ConfigurationTarget . Workspace :
+            return inspect ?. workspaceValue ;
+        case vscode . ConfigurationTarget . WorkspaceFolder :
+            return inspect ?. workspaceFolderValue ;
+        }
+    }
+    else
+    {
+        switch ( configurationTarget )
+        {
+        case vscode . ConfigurationTarget . Global :
+            return inspect ?. globalLanguageValue ;
+        case vscode . ConfigurationTarget . Workspace :
+            return inspect ?. workspaceLanguageValue ;
+        case vscode . ConfigurationTarget . WorkspaceFolder :
+            return inspect ?. workspaceFolderLanguageValue ;
+        }
+    }
+    return undefined ;
+} ;
 export const getConfiguration = < T >
 (
     configurationTarget : vscode . ConfigurationTarget ,
@@ -206,7 +305,7 @@ export const makeSettingValueItem = < T >
     label : `$(tag) ${ JSON . stringify ( value ) }` ,
     description ,
     detail ,
-    command : async () => await setConfiguration
+    preview : async () => await setConfiguration
     (
         configurationTarget ,
         overrideInLanguage ,
@@ -742,16 +841,14 @@ export const selectContext = async ( entry : SettingsEntry ) =>
     }
     if ( 0 < contextMenuItemList . length )
     {
+        await showQuickPick
         (
-            await vscode .window . showQuickPick
-            (
-                contextMenuItemList ,
-                {
-                    placeHolder : "Select a setting context." ,
-                    matchOnDescription : true ,
-                }
-            )
-        ) ?. command ( ) ;
+            contextMenuItemList ,
+            {
+                placeHolder : "Select a setting context." ,
+                matchOnDescription : true ,
+            }
+        ) ;
     }
     else
     {
@@ -763,54 +860,73 @@ export const selectContext = async ( entry : SettingsEntry ) =>
         ) ;
     }
 };
-export const editSettingItem = async (
+export const makeRollBackMethod = (
     configurationTarget : vscode . ConfigurationTarget ,
     overrideInLanguage : boolean ,
     entry : SettingsEntry
 ) =>
-//await vscode . window . showInformationMessage ( JSON . stringify ( entry ) ) ;
-(
-    await vscode . window . showQuickPick
+{
+    const inspect = inspectConfiguration ( configurationTarget, overrideInLanguage, entry ) ;
+    const current = getValueFromInspectResult ( configurationTarget, overrideInLanguage, inspect ) ;
+    return async ( ) => await setConfiguration
     (
-        [
-            <CommandMenuItem>
-            {
-                label : "$(discard) Reset",
-                command : async ( ) => await setConfiguration
-                (
-                    configurationTarget ,
-                    overrideInLanguage ,
-                    entry ,
-                    undefined
-                )
-            }
-        ]
-        .concat
-        (
-            makeEditSettingValueItemList
-            (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry
-            ),
-            makeSettingValueItemList
-            (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry
-            ),
-            makeSettingValueEditArrayItemList
-            (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry
-            )
-        ),
-        {
-            placeHolder: `${ makeSettingLabel ( entry ) } ( ${ entry . id } ) :`
-        }
+        configurationTarget ,
+        overrideInLanguage ,
+        entry ,
+        current
     )
-) ?. command ( ) ;
+} ;
+export const editSettingItem = async (
+    configurationTarget : vscode . ConfigurationTarget ,
+    overrideInLanguage : boolean ,
+    entry : SettingsEntry
+) => await showQuickPick
+(
+    [
+        <CommandMenuItem>
+        {
+            label : "$(discard) Reset",
+            preview : async ( ) => await setConfiguration
+            (
+                configurationTarget ,
+                overrideInLanguage ,
+                entry ,
+                undefined
+            )
+        }
+    ]
+    .concat
+    (
+        makeEditSettingValueItemList
+        (
+            configurationTarget ,
+            overrideInLanguage ,
+            entry
+        ),
+        makeSettingValueItemList
+        (
+            configurationTarget ,
+            overrideInLanguage ,
+            entry
+        ),
+        makeSettingValueEditArrayItemList
+        (
+            configurationTarget ,
+            overrideInLanguage ,
+            entry
+        )
+    ),
+    {
+        placeHolder : `${ makeSettingLabel ( entry ) } ( ${ entry . id } ) :` ,
+        rollback : makeRollBackMethod
+        (
+            configurationTarget ,
+            overrideInLanguage ,
+            entry
+        ) ,
+        // ignoreFocusOut : true ,
+    }
+) ;
 export const makeSettingLabel = ( entry : SettingsEntry ) =>　entry . id
     . replace ( /\./mg , ": " )
     . replace ( /([a-z0-9])([A-Z])/g , "$1 $2" )
@@ -852,35 +968,32 @@ export const makeEditSettingDescription = ( entry : SettingsEntry, value : any )
     + ( "string" === typeof entry . type ? entry . type : JSON . stringify ( entry . type ) )
     + " = "
     + JSON . stringify ( value ) ;
-export const editSettings = async ( ) =>
+export const editSettings = async ( ) => await showQuickPick
 (
-    await vscode .window . showQuickPick
+    ( await aggregateSettings ( ) ) . map
     (
-        ( await aggregateSettings ( ) ) . map
-        (
-            entry =>
-            ({
-                label : makeSettingLabel ( entry ) ,
-                description : makeEditSettingDescription
+        entry =>
+        ({
+            label : makeSettingLabel ( entry ) ,
+            description : makeEditSettingDescription
+            (
+                entry,
+                getConfiguration
                 (
-                    entry,
-                    getConfiguration
-                    (
-                        vscode.ConfigurationTarget.WorkspaceFolder ,
-                        true ,
-                        entry
-                    )
-                ),
-                detail : entry . description ?? markdownToPlaintext ( entry . markdownDescription ) ,
-                command : async ( ) => await selectContext ( entry ) ,
-            })
-        ) ,
-        {
-            placeHolder : "Select a setting item." ,
-            matchOnDescription : true ,
-        }
-    )
-) ?. command ( ) ;
+                    vscode.ConfigurationTarget.WorkspaceFolder ,
+                    true ,
+                    entry
+                )
+            ),
+            detail : entry . description ?? markdownToPlaintext ( entry . markdownDescription ) ,
+            command : async ( ) => await selectContext ( entry ) ,
+        })
+    ) ,
+    {
+        placeHolder : "Select a setting item." ,
+        matchOnDescription : true ,
+    }
+) ;
 export const activate = ( context : vscode . ExtensionContext ) => context . subscriptions . push
 (
     vscode . commands . registerCommand
