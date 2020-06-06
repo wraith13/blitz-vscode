@@ -78,12 +78,13 @@ const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse
 ) ;
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
-    preview ? : () => Promise < unknown > ;
-    command ? : () => Promise < unknown > ;
+    preview ? : ( ) => Promise < unknown > ;
+    command ? : ( ) => Promise < unknown > ;
 }
 export interface QuickPickOptions extends vscode . QuickPickOptions
 {
-    rollback ? : () => Promise < unknown > ;
+    rollback ? : ( ) => Promise < unknown > ;
+    strictRollback ? : ( ) => Promise < unknown > ;
 }
 export const showQuickPick = async < T extends CommandMenuItem >
 (
@@ -92,7 +93,17 @@ export const showQuickPick = async < T extends CommandMenuItem >
     token ? : vscode . CancellationToken
 ) =>
 {
-    let previewed = false ;
+    let lastPreview = options ?. strictRollback ?? options ?. rollback ;
+    const apply = async ( method ? : ( ) => Promise < unknown > ) =>
+    {
+        if ( method && lastPreview !== method )
+        {
+            lastPreview = method ;
+            await method ( ) ;
+            return true ;
+        }
+        return false ;
+    } ;
     const result = await vscode . window . showQuickPick
     (
         items,
@@ -101,36 +112,22 @@ export const showQuickPick = async < T extends CommandMenuItem >
             {
                 onDidSelectItem : async ( item : T ) =>
                 {
-                    if ( item . preview )
-                    {
-                        previewed = true ;
-                        await item . preview ( ) ;
-                    }
-                    else
-                    if ( previewed && options ?. rollback )
-                    {
-                        previewed = false ;
-                        await options . rollback ( ) ;
-                    }
+                    apply ( options ?. strictRollback ) ;
+                    apply ( item . preview ) || apply ( options ?. rollback ) ;
                 }
             },
             options ?? { },
         ),
         token
     ) ;
+    apply ( options ?. strictRollback ) ;
     if ( result )
     {
-        if ( result . command )
-        {
-            await result . command ( ) ;
-        }
+        apply ( result . command ) || apply ( result . preview ) ;
     }
     else
     {
-        if ( previewed && options ?. rollback )
-        {
-            await options . rollback ( ) ;
-        }
+        apply ( options ?. rollback ) ;
     }
     return result ;
 } ;
@@ -493,7 +490,7 @@ async (
     ) ;
     const input = await vscode.window.showInputBox
     ({
-        value: undefinedOrString
+        value: toStringOrUndefined
         (
             await getConfiguration
             (
@@ -523,12 +520,11 @@ async (
         rollback ( ) ;
     }
 };
-export const undefinedOrString = ( value : any ) => undefined === value ?
-    undefined :
+export const toStringOfDefault = ( value : any , defaultValue : any ) => undefined === value ?
+    defaultValue :
     JSON . stringify ( value );
-export const forceString = ( value : any ) => undefined === value ?
-    "undefined" :
-    JSON . stringify ( value );
+export const toStringOrUndefined = ( value : any ) => toStringOfDefault ( value , undefined ) ;
+export const toStringForce = ( value : any ) => toStringOfDefault ( value , "undefined" ) ;
 export const makeEditSettingValueItemList =
 (
     configurationTarget : vscode . ConfigurationTarget ,
@@ -746,7 +742,7 @@ export const makeSettingValueEditArrayItemList =
             (
                 ( item , index ) => result . push
                 ({
-                    label: `$(remove) Remove "${ undefinedOrString ( item ) }"`,
+                    label: `$(remove) Remove "${ toStringOrUndefined ( item ) }"`,
                     command: async () =>
                     {
                         await setConfiguration
@@ -776,7 +772,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
     {
         contextMenuItemList . push
         ({
-            label : `Global: ${ forceString ( undefined !== ( values ?. globalValue ) ? values ?. globalValue : values ?. defaultValue ) }` ,
+            label : `Global: ${ toStringForce ( undefined !== ( values ?. globalValue ) ? values ?. globalValue : values ?. defaultValue ) }` ,
             command : async ( ) => await editSettingItem
             (
                 vscode . ConfigurationTarget . Global ,
@@ -788,7 +784,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
         {
             contextMenuItemList . push
             ({
-                label : `WorkspaceFolder: ${ forceString ( values ?. workspaceValue ) }` ,
+                label : `WorkspaceFolder: ${ toStringForce ( values ?. workspaceValue ) }` ,
                 command : async ( ) => await editSettingItem
                 (
                     vscode . ConfigurationTarget . Workspace ,
@@ -801,7 +797,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
         {
             contextMenuItemList . push
             ({
-                label : `WorkspaceFolder: ${ forceString ( values ?. workspaceFolderValue ) }` ,
+                label : `WorkspaceFolder: ${ toStringForce ( values ?. workspaceFolderValue ) }` ,
                 command : async ( ) => await editSettingItem
                 (
                     vscode . ConfigurationTarget . WorkspaceFolder ,
@@ -814,7 +810,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
         {
             contextMenuItemList . push
             ({
-                label : `Global(lang:${languageId}): ${ forceString ( undefined !== ( values ?. globalLanguageValue ) ? values ?. globalLanguageValue : values ?. defaultLanguageValue ) }` ,
+                label : `Global(lang:${languageId}): ${ toStringForce ( undefined !== ( values ?. globalLanguageValue ) ? values ?. globalLanguageValue : values ?. defaultLanguageValue ) }` ,
                 command : async ( ) => await editSettingItem
                 (
                     vscode . ConfigurationTarget . Global ,
@@ -826,7 +822,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
             {
                 contextMenuItemList . push
                 ({
-                    label : `WorkspaceFolder(lang:${languageId}): ${ forceString ( values ?. workspaceLanguageValue ) }` ,
+                    label : `WorkspaceFolder(lang:${languageId}): ${ toStringForce ( values ?. workspaceLanguageValue ) }` ,
                     command : async ( ) => await editSettingItem
                     (
                         vscode . ConfigurationTarget . Workspace ,
@@ -839,7 +835,7 @@ export const selectContext = async ( entry : SettingsEntry ) =>
             {
                 contextMenuItemList . push
                 ({
-                    label : `WorkspaceFolder(lang:${languageId}): ${ forceString ( values ?. workspaceFolderLanguageValue ) }` ,
+                    label : `WorkspaceFolder(lang:${languageId}): ${ toStringForce ( values ?. workspaceFolderLanguageValue ) }` ,
                     command : async ( ) => await editSettingItem
                     (
                         vscode . ConfigurationTarget . WorkspaceFolder ,
