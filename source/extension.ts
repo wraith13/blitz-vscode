@@ -480,10 +480,17 @@ async (
     configurationTarget : vscode . ConfigurationTarget ,
     overrideInLanguage : boolean ,
     entry : SettingsEntry ,
-    validateInput : ( input: string ) => string | undefined | null | Thenable<string | undefined | null>,
+    //validateInput : ( input: string ) => string | undefined | null | Thenable<string | undefined | null>,
+    validateInput : ( input: string ) => string | undefined | null,
     parser : ( input : string ) => unknown
 ) =>
 {
+    const rollback = makeRollBackMethod
+    (
+        configurationTarget ,
+        overrideInLanguage ,
+        entry
+    ) ;
     const input = await vscode.window.showInputBox
     ({
         value: undefinedOrString
@@ -495,21 +502,25 @@ async (
                 entry
             )
         ) ,
-        validateInput
-    });
-    if (undefined !== input)
-    {
-        const value = parser ( input ) ;
-        if (undefined !== value)
+        validateInput : async ( input ) =>
         {
-            await setConfiguration
-            (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
-                value
-            );
+            const result = validateInput ( input ) ;
+            if ( undefined === result || null === result )
+            {
+                await setConfiguration
+                (
+                    configurationTarget ,
+                    overrideInLanguage ,
+                    entry ,
+                    parser ( input )
+                );
+            }
+            return result ;
         }
+    });
+    if (undefined === input)
+    {
+        rollback ( ) ;
     }
 };
 export const undefinedOrString = ( value : any ) => undefined === value ?
