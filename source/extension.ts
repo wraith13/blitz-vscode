@@ -66,6 +66,12 @@ interface SchemasSettingsDefault
     allowTrailingCommas : boolean ;
     allowComments : boolean ;
 } ;
+interface SettingsFocus
+{
+    configurationTarget : vscode . ConfigurationTarget ;
+    overrideInLanguage : boolean ;
+    entry : SettingsEntry ;
+}
 const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse
 (
     (
@@ -94,7 +100,7 @@ export const showQuickPick = async < T extends CommandMenuItem >
 ) =>
 {
     let lastPreview = options ?. strictRollback ?? options ?. rollback ;
-    const apply = async ( method ? : ( ) => Promise < unknown > ) =>
+    const apply = async ( method : ( ( ) => Promise < unknown > ) | undefined ) =>
     {
         if ( method && lastPreview !== method )
         {
@@ -112,22 +118,22 @@ export const showQuickPick = async < T extends CommandMenuItem >
             {
                 onDidSelectItem : async ( item : T ) =>
                 {
-                    apply ( options ?. strictRollback ) ;
-                    apply ( item . preview ) || apply ( options ?. rollback ) ;
+                    await apply ( options ?. strictRollback ) ;
+                    await apply ( item . preview ) || await apply ( options ?. rollback ) ;
                 }
             },
             options ?? { },
         ),
         token
     ) ;
-    apply ( options ?. strictRollback ) ;
+    await apply ( options ?. strictRollback ) ;
     if ( result )
     {
-        apply ( result . command ) || apply ( result . preview ) ;
+        await apply ( result . command ) || await apply ( result . preview ) ;
     }
     else
     {
-        apply ( options ?. rollback ) ;
+        await apply ( options ?. rollback ) ;
     }
     return result ;
 } ;
@@ -198,24 +204,22 @@ export const aggregateSettings = async ( ) =>
             )
         ) ;
 } ;
-export const inspectConfiguration = < T >
+export const inspectConfiguration = < T > ( focus : SettingsFocus ) => vscode.workspace.getConfiguration
 (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) => vscode.workspace.getConfiguration
-(
-    makeConfigurationSection ( entry . id ) ,
-    makeConfigurationScope ( configurationTarget , overrideInLanguage )
+    makeConfigurationSection ( focus . entry . id ) ,
+    makeConfigurationScope ( focus )
 )
 . inspect < T >
 (
-    makeConfigurationKey ( entry . id )
+    makeConfigurationKey ( focus . entry . id )
 );
 export const getValueFromInspectResult =
 <T>(
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
+    context :
+    {
+        configurationTarget : vscode . ConfigurationTarget ,
+        overrideInLanguage : boolean ,
+    } ,
     inspect :
     {
         key : string ,
@@ -231,9 +235,9 @@ export const getValueFromInspectResult =
     } | undefined
 ) =>
 {
-    if ( ! overrideInLanguage )
+    if ( ! context . overrideInLanguage )
     {
-        switch ( configurationTarget )
+        switch ( context . configurationTarget )
         {
         case vscode . ConfigurationTarget . Global :
             return inspect ?. globalValue ;
@@ -245,7 +249,7 @@ export const getValueFromInspectResult =
     }
     else
     {
-        switch ( configurationTarget )
+        switch ( context . configurationTarget )
         {
         case vscode . ConfigurationTarget . Global :
             return inspect ?. globalLanguageValue ;
@@ -257,43 +261,34 @@ export const getValueFromInspectResult =
     }
     return undefined ;
 } ;
-export const getConfiguration = < T >
+export const getConfiguration = < T > ( focus : SettingsFocus ) : T | undefined => vscode.workspace.getConfiguration
 (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) : T | undefined => vscode.workspace.getConfiguration
-(
-    makeConfigurationSection ( entry . id ) ,
-    makeConfigurationScope ( configurationTarget , overrideInLanguage )
+    makeConfigurationSection ( focus . entry . id ) ,
+    makeConfigurationScope ( focus )
 )
 . get < T >
 (
-    makeConfigurationKey ( entry . id )
+    makeConfigurationKey ( focus . entry . id )
 );
 export const setConfiguration = async < T >
 (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry ,
+    focus : SettingsFocus ,
     value : T
 ) => await vscode.workspace.getConfiguration
 (
-    makeConfigurationSection ( entry . id ) ,
-    makeConfigurationScope ( configurationTarget , overrideInLanguage )
+    makeConfigurationSection ( focus . entry . id ) ,
+    makeConfigurationScope ( focus )
 )
 . update
 (
-    makeConfigurationKey ( entry . id ) ,
+    makeConfigurationKey ( focus . entry . id ) ,
     value ,
-    configurationTarget ,
-    overrideInLanguage
+    focus . configurationTarget ,
+    focus . overrideInLanguage
 );
 export const makeSettingValueItem = < T >
 (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry ,
+    focus : SettingsFocus ,
     value : T,
     description ? : string ,
     detail ? : string
@@ -302,21 +297,11 @@ export const makeSettingValueItem = < T >
     label : `$(tag) ${ JSON . stringify ( value ) }` ,
     description ,
     detail ,
-    preview : async () => await setConfiguration
-    (
-        configurationTarget ,
-        overrideInLanguage ,
-        entry ,
-        value
-    )
+    preview : async () => await setConfiguration ( focus , value )
 });
-export const makeSettingValueItemList =
-(
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) : CommandMenuItem [ ] =>
+export const makeSettingValueItemList = ( focus : SettingsFocus ) : CommandMenuItem [ ] =>
 {
+    const entry = focus . entry ;
     const list : { value : any , description : string [ ] , detail ? : string } [ ] = [ ] ;
     const register = ( value : any , description ? : string , detail ? : string ) =>
     {
@@ -373,7 +358,7 @@ export const makeSettingValueItemList =
         ) ;
     }
     register ( getDefaultValue ( entry ) , "default" ) ;
-    register ( getConfiguration ( configurationTarget , overrideInLanguage , entry ) , "current" ) ;
+    register ( getConfiguration ( focus ) , "current" ) ;
     const typeIndexOf = ( value : any ) =>
     {
         switch ( typeof value )
@@ -459,9 +444,7 @@ export const makeSettingValueItemList =
     (
         i => makeSettingValueItem
         (
-            configurationTarget ,
-            overrideInLanguage ,
-            entry ,
+            focus ,
             i . value ,
             0 < i . description .length ? i . description . join ( ", " ) : undefined ,
             i . detail
@@ -474,30 +457,18 @@ export const hasType = ( entry : SettingsEntry | PackageJsonConfiguration , type
         < PrimaryConfigurationType > entry . type === type ;
 export const editSettingValue =
 async (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry ,
+    focus : SettingsFocus ,
     //validateInput : ( input: string ) => string | undefined | null | Thenable<string | undefined | null>,
     validateInput : ( input: string ) => string | undefined | null,
     parser : ( input : string ) => unknown
 ) =>
 {
-    const rollback = makeRollBackMethod
-    (
-        configurationTarget ,
-        overrideInLanguage ,
-        entry
-    ) ;
+    const rollback = makeRollBackMethod ( focus ) ;
     const input = await vscode.window.showInputBox
     ({
         value: toStringOrUndefined
         (
-            await getConfiguration
-            (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry
-            )
+            await getConfiguration ( focus )
         ) ,
         validateInput : async ( input ) =>
         {
@@ -506,9 +477,7 @@ async (
             {
                 await setConfiguration
                 (
-                    configurationTarget ,
-                    overrideInLanguage ,
-                    entry ,
+                    focus ,
                     parser ( input )
                 );
             }
@@ -525,13 +494,9 @@ export const toStringOfDefault = ( value : any , defaultValue : any ) => undefin
     JSON . stringify ( value );
 export const toStringOrUndefined = ( value : any ) => toStringOfDefault ( value , undefined ) ;
 export const toStringForce = ( value : any ) => toStringOfDefault ( value , "undefined" ) ;
-export const makeEditSettingValueItemList =
-(
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) : CommandMenuItem [ ] =>
+export const makeEditSettingValueItemList = ( focus : SettingsFocus ) : CommandMenuItem [ ] =>
 {
+    const entry = focus . entry ;
     const result : CommandMenuItem [ ] = [ ];
     if ( undefined === entry . enum && hasType ( entry , "string" ) )
     {
@@ -540,9 +505,7 @@ export const makeEditSettingValueItemList =
             label : "$(edit) Input string",
             command : async ( ) => await editSettingValue
             (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
+                focus ,
                 ( ) => undefined,
                 input => input
             )
@@ -555,9 +518,7 @@ export const makeEditSettingValueItemList =
             label : "$(edit) Input integer",
             command : async ( ) => await editSettingValue
             (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
+                focus ,
                 input =>
                 {
                     const value = parseInt ( input );
@@ -586,9 +547,7 @@ export const makeEditSettingValueItemList =
             label : "$(edit) Input number",
             command : async ( ) => await editSettingValue
             (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
+                focus ,
                 input =>
                 {
                     const value = parseFloat ( input );
@@ -617,9 +576,7 @@ export const makeEditSettingValueItemList =
             label : "$(edit) Input array",
             command : async ( ) => await editSettingValue
             (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
+                focus ,
                 input =>
                 {
                     try
@@ -651,9 +608,7 @@ export const makeEditSettingValueItemList =
             label : "$(edit) Input object",
             command : async ( ) => await editSettingValue
             (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
+                focus ,
                 input =>
                 {
                     try
@@ -680,59 +635,41 @@ export const makeEditSettingValueItemList =
     }
     return result ;
 };
-export const makeSettingValueEditArrayItemList =
-(
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) : CommandMenuItem [ ] =>
+export const makeSettingValueEditArrayItemList = ( focus : SettingsFocus ) : CommandMenuItem [ ] =>
 {
+    const entry = focus . entry ;
     const result : CommandMenuItem [ ] = [ ];
     if ( hasType ( entry , "array" ) )
     {
-        const array = getConfiguration < any [ ] >
-        (
-            configurationTarget ,
-            overrideInLanguage ,
-            entry
-        ) ?? [ ] ;
+        const array = getConfiguration < any [ ] > ( focus ) ?? [ ] ;
         if ( Array . isArray ( array ) )
         {
             if ( entry . items ?. type && hasType ( entry . items , "null" ) )
             {
                 result . push
                 ({
-                    label: `$(add) Add null item`,
-                    command: async () =>
-                    {
-                        array . push ( null ) ;
-                        await setConfiguration
-                        (
-                            configurationTarget ,
-                            overrideInLanguage ,
-                            entry ,
-                            array
-                        );
-                    }
+                    label : `$(add) Add null item` ,
+                    preview : async () => await setConfiguration
+                    (
+                        focus ,
+                        array . concat ([ null ])
+                    ) ,
                 });
             }
             if ( ! entry . items ?. type || hasType ( entry . items , "string" ) )
             {
                 result . push
                 ({
-                    label: `$(add) Add string item`,
-                    command: async () =>
+                    label : `$(add) Add string item` ,
+                    command : async () =>
                     {
                         const input = await vscode.window.showInputBox ({ }) ;
                         if (undefined !== input)
                         {
-                            array . push ( input ) ;
                             await setConfiguration
                             (
-                                configurationTarget ,
-                                overrideInLanguage ,
-                                entry ,
-                                array
+                                focus ,
+                                array . concat ([ input ])
                             );
                         }
                     }
@@ -742,43 +679,42 @@ export const makeSettingValueEditArrayItemList =
             (
                 ( item , index ) => result . push
                 ({
-                    label: `$(remove) Remove "${ toStringOrUndefined ( item ) }"`,
-                    command: async () =>
-                    {
-                        await setConfiguration
-                        (
-                            configurationTarget ,
-                            overrideInLanguage ,
-                            entry ,
-                            array . splice ( index , 1 )
-                        );
-                    }
+                    label : `$(remove) Remove "${ toStringOrUndefined ( item ) }"` ,
+                    preview : async () => await setConfiguration
+                    (
+                        focus ,
+                        array . filter ( _ => true ) . splice ( index , 1 )
+                    ) ,
                 })
             );
         }
     }
     return result ;
 };
-
 export const selectContext = async ( entry : SettingsEntry ) =>
 {
     const contextMenuItemList : CommandMenuItem [ ] = [ ] ;
     const languageId = getLanguageId ( ) ;
-    const values = inspectConfiguration ( vscode . ConfigurationTarget . WorkspaceFolder , true , entry ) ;
-    const workspaceOverridable = 0 < ( vscode . workspace . workspaceFolders ?.length ?? 0 )  && ( undefined === entry . scope || ( ConfigurationScope . APPLICATION !== entry . scope && ConfigurationScope . MACHINE !== entry . scope ) )
-    const workspaceFolderOverridable = 1 < ( vscode . workspace . workspaceFolders ?.length ?? 0 ) && ( undefined === entry . scope || ( ConfigurationScope . APPLICATION !== entry . scope && ConfigurationScope . MACHINE !== entry . scope && ConfigurationScope . WINDOW !== entry . scope ) )
-    const languageOverridable = languageId && ( entry . overridable || undefined === entry . scope || ConfigurationScope . LANGUAGE_OVERRIDABLE === entry . scope )
+    const values = inspectConfiguration
+    ({
+        configurationTarget : vscode . ConfigurationTarget . WorkspaceFolder ,
+        overrideInLanguage : true ,
+        entry
+    }) ;
+    const workspaceOverridable = 0 < ( vscode . workspace . workspaceFolders ?.length ?? 0 )  && ( undefined === entry . scope || ( ConfigurationScope . APPLICATION !== entry . scope && ConfigurationScope . MACHINE !== entry . scope ) ) ;
+    const workspaceFolderOverridable = 1 < ( vscode . workspace . workspaceFolders ?.length ?? 0 ) && ( undefined === entry . scope || ( ConfigurationScope . APPLICATION !== entry . scope && ConfigurationScope . MACHINE !== entry . scope && ConfigurationScope . WINDOW !== entry . scope ) ) ;
+    const languageOverridable = languageId && ( entry . overridable || undefined === entry . scope || ConfigurationScope . LANGUAGE_OVERRIDABLE === entry . scope ) ;
     if ( workspaceOverridable || workspaceFolderOverridable || languageOverridable )
     {
         contextMenuItemList . push
         ({
             label : `Global: ${ toStringForce ( undefined !== ( values ?. globalValue ) ? values ?. globalValue : values ?. defaultValue ) }` ,
             command : async ( ) => await editSettingItem
-            (
-                vscode . ConfigurationTarget . Global ,
-                false ,
+            ({
+                configurationTarget : vscode . ConfigurationTarget . Global ,
+                overrideInLanguage : false ,
                 entry
-            )
+            })
         }) ;
         if ( workspaceOverridable )
         {
@@ -786,11 +722,11 @@ export const selectContext = async ( entry : SettingsEntry ) =>
             ({
                 label : `WorkspaceFolder: ${ toStringForce ( values ?. workspaceValue ) }` ,
                 command : async ( ) => await editSettingItem
-                (
-                    vscode . ConfigurationTarget . Workspace ,
-                    false ,
+                ({
+                    configurationTarget : vscode . ConfigurationTarget . Workspace ,
+                    overrideInLanguage : false ,
                     entry
-                )
+                })
             }) ;
         }
         if ( workspaceFolderOverridable )
@@ -799,11 +735,11 @@ export const selectContext = async ( entry : SettingsEntry ) =>
             ({
                 label : `WorkspaceFolder: ${ toStringForce ( values ?. workspaceFolderValue ) }` ,
                 command : async ( ) => await editSettingItem
-                (
-                    vscode . ConfigurationTarget . WorkspaceFolder ,
-                    false ,
+                ({
+                    configurationTarget : vscode . ConfigurationTarget . WorkspaceFolder ,
+                    overrideInLanguage : false ,
                     entry
-                )
+                })
             }) ;
         }
         if ( languageOverridable )
@@ -812,11 +748,11 @@ export const selectContext = async ( entry : SettingsEntry ) =>
             ({
                 label : `Global(lang:${languageId}): ${ toStringForce ( undefined !== ( values ?. globalLanguageValue ) ? values ?. globalLanguageValue : values ?. defaultLanguageValue ) }` ,
                 command : async ( ) => await editSettingItem
-                (
-                    vscode . ConfigurationTarget . Global ,
-                    true ,
+                ({
+                    configurationTarget : vscode . ConfigurationTarget . Global ,
+                    overrideInLanguage : true ,
                     entry
-                )
+                })
             }) ;
             if ( workspaceOverridable )
             {
@@ -824,11 +760,11 @@ export const selectContext = async ( entry : SettingsEntry ) =>
                 ({
                     label : `WorkspaceFolder(lang:${languageId}): ${ toStringForce ( values ?. workspaceLanguageValue ) }` ,
                     command : async ( ) => await editSettingItem
-                    (
-                        vscode . ConfigurationTarget . Workspace ,
-                        true ,
+                    ({
+                        configurationTarget : vscode . ConfigurationTarget . Workspace ,
+                        overrideInLanguage : true ,
                         entry
-                    )
+                    })
                 }) ;
             }
             if ( workspaceFolderOverridable )
@@ -837,11 +773,11 @@ export const selectContext = async ( entry : SettingsEntry ) =>
                 ({
                     label : `WorkspaceFolder(lang:${languageId}): ${ toStringForce ( values ?. workspaceFolderLanguageValue ) }` ,
                     command : async ( ) => await editSettingItem
-                    (
-                        vscode . ConfigurationTarget . WorkspaceFolder ,
-                        true ,
+                    ({
+                        configurationTarget : vscode . ConfigurationTarget . WorkspaceFolder ,
+                        overrideInLanguage : true ,
                         entry
-                    )
+                    })
                 }) ;
             }
     }
@@ -860,76 +796,42 @@ export const selectContext = async ( entry : SettingsEntry ) =>
     else
     {
         await editSettingItem
-        (
-            vscode . ConfigurationTarget .Global ,
-            false ,
+        ({
+            configurationTarget : vscode . ConfigurationTarget .Global ,
+            overrideInLanguage : false ,
             entry
-        ) ;
+        }) ;
     }
 };
-export const makeRollBackMethod = (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) =>
-{
-    const inspect = inspectConfiguration ( configurationTarget, overrideInLanguage, entry ) ;
-    const current = getValueFromInspectResult ( configurationTarget, overrideInLanguage, inspect ) ;
-    return async ( ) => await setConfiguration
+export const makeRollBackMethod =
+(
+    focus : SettingsFocus ,
+    value = getValueFromInspectResult
     (
-        configurationTarget ,
-        overrideInLanguage ,
-        entry ,
-        current
+        focus,
+        inspectConfiguration ( focus )
     )
-} ;
-export const editSettingItem = async (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
-    entry : SettingsEntry
-) => await showQuickPick
+) => async ( ) => await setConfiguration ( focus , value ) ;
+export const editSettingItem = async ( focus : SettingsFocus ) => await showQuickPick
 (
     [
         <CommandMenuItem>
         {
             label : "$(discard) Reset",
-            preview : async ( ) => await setConfiguration
-            (
-                configurationTarget ,
-                overrideInLanguage ,
-                entry ,
-                undefined
-            )
+            preview : async ( ) => await setConfiguration ( focus , undefined )
         }
     ]
-    .concat
+    . concat
     (
-        makeEditSettingValueItemList
-        (
-            configurationTarget ,
-            overrideInLanguage ,
-            entry
-        ),
-        makeSettingValueItemList
-        (
-            configurationTarget ,
-            overrideInLanguage ,
-            entry
-        ),
-        makeSettingValueEditArrayItemList
-        (
-            configurationTarget ,
-            overrideInLanguage ,
-            entry
-        )
-    ),
+        makeEditSettingValueItemList ( focus ) ,
+        makeSettingValueItemList ( focus ) ,
+        makeSettingValueEditArrayItemList ( focus )
+    ) ,
     {
-        placeHolder : `${ makeSettingLabel ( entry ) } ( ${ entry . id } ) :` ,
+        placeHolder : `${ makeSettingLabel ( focus . entry ) } ( ${ focus . entry . id } ) :` ,
         rollback : makeRollBackMethod
         (
-            configurationTarget ,
-            overrideInLanguage ,
-            entry
+            focus
         ) ,
         // ignoreFocusOut : true ,
     }
@@ -940,16 +842,19 @@ export const makeSettingLabel = ( entry : SettingsEntry ) =>　entry . id
     . replace ( /(^|\s)([a-z])/g , ( _s , m1 , m2 ) =>　`${ m1 }${ m2 . toUpperCase ( ) }` ) ;
 export const makeConfigurationScope =
 (
-    configurationTarget : vscode . ConfigurationTarget ,
-    overrideInLanguage : boolean ,
+    context :
+    {
+        configurationTarget : vscode . ConfigurationTarget ,
+        overrideInLanguage : boolean ,
+    }
 ) =>
 {
     const activeDocumentUri = vscode . window . activeTextEditor ?. document . uri ;
-    if ( activeDocumentUri && overrideInLanguage )
+    if ( activeDocumentUri && context . overrideInLanguage )
     {
         return activeDocumentUri ;
     }
-    switch ( configurationTarget )
+    switch ( context . configurationTarget )
     {
     case vscode . ConfigurationTarget . Global :
         return undefined;
@@ -986,11 +891,11 @@ export const editSettings = async ( ) => await showQuickPick
             (
                 entry,
                 getConfiguration
-                (
-                    vscode.ConfigurationTarget.WorkspaceFolder ,
-                    true ,
+                ({
+                    configurationTarget : vscode.ConfigurationTarget.WorkspaceFolder ,
+                    overrideInLanguage : true ,
                     entry
-                )
+                })
             ),
             detail : entry . description ?? markdownToPlaintext ( entry . markdownDescription ) ,
             command : async ( ) => await selectContext ( entry ) ,
