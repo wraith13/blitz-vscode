@@ -2,6 +2,7 @@
     "name": "blitz",
     "displayName": "blitz",
     "description": "blitz config for VS Code",
+    "icon": "images/blitzhex.128.png",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.45.0"
