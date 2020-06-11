@@ -17,12 +17,17 @@ export const enum ConfigurationScope
     // Machine specific configuration that can also be configured in workspace or folder settings.
     MACHINE_OVERRIDABLE,
 } ;
-interface PackageJsonConfigurationProperty
+interface PackageJsonConfigurationBase
+{
+    "$ref" ?: string ;
+    properties : { [ key : string ] : PackageJsonConfigurationProperty } ;
+}
+interface PackageJsonConfigurationProperty extends PackageJsonConfigurationBase
 {
     type : ConfigurationType ;
     scope ?: ConfigurationScope ;
     default ?: any ;
-    items ?: PackageJsonConfiguration ;
+    items ?: PackageJsonConfigurationProperty ;
     enum ?: string [ ] ;
     minimum ?: number ;
     maximum ?: number ;
@@ -32,14 +37,14 @@ interface PackageJsonConfigurationProperty
     markdownDescription ?: string ;
     markdownEnumDescriptions ?: string [ ] ;
     tags ?: string [ ] ;
+    allOf ?: PackageJsonConfigurationProperty [ ] ;
 }
-interface PackageJsonConfiguration
+interface PackageJsonConfiguration extends PackageJsonConfigurationBase
 {
-    id ?: string;
-    order ?: number,
-    type ?: ConfigurationType,
-    title : string;
-    properties : { [ key : string ] : PackageJsonConfigurationProperty } ;
+    id ?: string ;
+    order ?: number ;
+    type ?: ConfigurationType ;
+    title : string ;
 }
 interface PackageJsonContributes
 {
@@ -72,16 +77,76 @@ interface SettingsFocus
     overrideInLanguage : boolean ;
     entry : SettingsEntry ;
 }
-const getVscodeSettings = async () => < SchemasSettingsDefault > JSON . parse
-(
+const schemas : { [ uri : string ] : object } = { } ;
+const getSchema = async ( uri : string , self ?: any ) =>
+    undefined !== uri && 0 < uri . length ?
     (
-        await vscode . workspace . openTextDocument
+        schemas [ uri ] ??
         (
-            vscode . Uri . parse ( "vscode://schemas/settings/default" )
+            schemas [ uri ] = JSON . parse
+            (
+                (
+                    await vscode . workspace . openTextDocument
+                    (
+                        vscode . Uri . parse ( uri )
+                    )
+                )
+                . getText ( )
+            )
         )
-    )
-    . getText ( )
-) ;
+    ) :
+    self ;
+const getOjectWithPath = ( current : any , path : string ) : any =>
+{
+    const parts = path . split ( "/" ) . filter ( i => 0 < i . length ) ;
+    if ( 0 < parts . length && 0 < parts [0] .length )
+    {
+        return getOjectWithPath ( current [ parts [0] ], path.substr ( parts [0] . length + 1 ) ) ;
+    }
+    return current ;
+} ;
+const loadReference = async < T extends object > ( self : any , current : T , reference : string ) : Promise < T > =>
+{
+    const parts = reference . split ( "#" ) ;
+    const uri = parts [ 0 ] ;
+    const path = parts [ 1 ] ?? "" ;
+    console.log(`loadReference: ${ JSON . stringify ({ uri , path  })}`);
+    const schema = await getSchema ( uri , self ) ;
+    return Object . assign
+    (
+        current ,
+        getOjectWithPath ( schema , path )
+    ) ;
+} ;
+const resolveReference = async < T extends { "$ref" ?: string } > ( self : any , current : T = self ) : Promise < T > =>
+{
+    if ( current && "object" === typeof current )
+    {
+        if ( Array . isArray ( current ) )
+        {
+            await Promise . all ( current . map ( i => resolveReference ( self , i ) ) ) ;
+        }
+        else
+        {
+            if ( "string" === typeof current . $ref )
+            {
+                await loadReference ( self , current , current . $ref ) ;
+                current . $ref = undefined ;
+            }
+            else
+            {
+                await Promise . all
+                (
+                    Object
+                        . keys ( current )
+                        . map ( key => resolveReference ( self , ( < any > current ) [ key ] ) )
+                ) ;
+            }
+        }
+    }
+    return current ;
+} ;
+const getVscodeSettings = async () : Promise < SchemasSettingsDefault > => < SchemasSettingsDefault > await getSchema ( "vscode://schemas/settings/default" ) ;
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
     preview ? : ( ) => Promise < unknown > ;
@@ -165,6 +230,10 @@ export const getDefaultValue = ( entry : SettingsEntry ) =>
         return null ;
     }
 };
+export const getType = ( value : any ) : PrimaryConfigurationType =>
+    "object" === typeof value && Array . isArray ( value ) ?
+        "array" :
+        < PrimaryConfigurationType > typeof value ; // JSON のデータが前提なので。
 export const markdownToPlaintext = ( markdown : string | undefined ) =>
     undefined === markdown ?
         undefined :
@@ -286,6 +355,17 @@ export const setConfiguration = async < T >
     focus . configurationTarget ,
     focus . overrideInLanguage
 );
+export const getProperties = ( entry : SettingsEntry ) =>
+{
+    const properties = Object . assign ( { } , entry . properties ?? { } ) ;
+    if ( entry . allOf )
+    {
+        entry . allOf
+            . filter ( i => undefined !== i . properties )
+            . forEach ( i => Object . assign ( properties , i ) ) ;
+    }
+    return properties ;
+} ;
 export const makeSettingValueItem = < T >
 (
     focus : SettingsFocus ,
@@ -451,10 +531,30 @@ export const makeSettingValueItemList = ( focus : SettingsFocus ) : CommandMenuI
         )
     );
 };
-export const hasType = ( entry : SettingsEntry | PackageJsonConfiguration , type : PrimaryConfigurationType ) =>
-    Array . isArray ( entry . type ) ?
-        0 <= ( < PrimaryConfigurationType [ ] > entry . type ) . indexOf ( type ) :
-        < PrimaryConfigurationType > entry . type === type ;
+export const hasType = ( entry : PackageJsonConfigurationProperty , type : PrimaryConfigurationType ) : boolean =>
+{
+    if
+    (
+        undefined !== entry . type &&
+        (
+            Array . isArray ( entry . type ) ?
+                0 <= ( entry . type ) . indexOf ( type ) :
+                entry . type === type
+        )
+    )
+    {
+        return true ;
+    }
+    if ( 0 < ( entry ?. allOf ?. filter ( i => hasType( i , type ) ) ?. length ?? 0 ) )
+    {
+        return true ;
+    }
+    if ( type === getType ( entry . default ) )
+    {
+        return true ;
+    }
+    return false ;
+} ;
 export const editSettingValue =
 async (
     focus : SettingsFocus ,
@@ -632,6 +732,17 @@ export const makeEditSettingValueItemList = ( focus : SettingsFocus ) : CommandM
                 input => JSON . parse ( input )
             )
         });
+        /*
+        const properties = getProperties ( entry ) ;
+        Object .keys ( properties )
+            . forEach
+            (
+                key =>
+                {
+                    properties [ key ]
+                }
+            ) ;
+        */
     }
     return result ;
 };
@@ -693,6 +804,10 @@ export const makeSettingValueEditArrayItemList = ( focus : SettingsFocus ) : Com
 };
 export const selectContext = async ( entry : SettingsEntry ) =>
 {
+    console . log ( `entry: ${ JSON . stringify ( entry ) }` ) ;
+    await resolveReference ( entry ) ;
+    console . log ( `entry2: ${ JSON . stringify ( entry ) }` ) ;
+
     const contextMenuItemList : CommandMenuItem [ ] = [ ] ;
     const languageId = getLanguageId ( ) ;
     const values = inspectConfiguration
