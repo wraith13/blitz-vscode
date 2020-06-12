@@ -805,6 +805,16 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus): Command
     }
     return result;
 };
+export const showDescriptionMenuItem = (id : string, description: string, goBack: () => Promise<unknown>) =>
+({
+    label: `Show Full Description`,
+    description: id,
+    command: async () =>
+    {
+        await vscode.window.showInformationMessage(description, { modal: true, });
+        await goBack();
+    },
+});
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
     console.log(`entry: ${ JSON.stringify(entry)}`);
@@ -901,11 +911,22 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                     })
                 });
             }
+        }
     }
+    let showMenu: () => Promise<unknown>;
+    const description = entry.description ?? markdownToPlaintext(entry.markdownDescription);
+    let showDescriptionMenu: CommandMenuItem | undefined = undefined;
+    if (undefined !== description && 32 < description.length)
+    {
+        showDescriptionMenu = showDescriptionMenuItem(entry.id, description, async () => await showMenu());
     }
     if (0 < contextMenuItemList.length)
     {
-        await showQuickPick
+        if (undefined !== showDescriptionMenu)
+        {
+            contextMenuItemList.splice(0, 0, showDescriptionMenu);
+        }
+        showMenu = async () => await showQuickPick
         (
             contextMenuItemList,
             {
@@ -916,13 +937,17 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     }
     else
     {
-        await editSettingItem
-        ({
-            configurationTarget: vscode.ConfigurationTarget .Global,
-            overrideInLanguage: false,
-            entry
-        });
+        showMenu = async () => await editSettingItem
+        (
+            {
+                configurationTarget: vscode.ConfigurationTarget .Global,
+                overrideInLanguage: false,
+                entry
+            },
+            <CommandMenuItem[]>[ showDescriptionMenu, ].filter(i => undefined !== i)
+        );
     }
+    await showMenu();
 };
 export const makeRollBackMethod =
 (
@@ -933,17 +958,15 @@ export const makeRollBackMethod =
         inspectConfiguration(focus)
     )
 ) => async () => await setConfiguration(focus, value);
-export const editSettingItem = async (focus: SettingsFocus) => await showQuickPick
+export const editSettingItem = async (focus: SettingsFocus, headMenuItemList: CommandMenuItem[] = [ ]) => await showQuickPick
 (
-    [
-        <CommandMenuItem>
-        {
-            label: "$(discard) Reset",
-            preview: async () => await setConfiguration(focus, undefined)
-        }
-    ]
+    headMenuItemList
     .concat
     (
+        [{
+            label: "$(discard) Reset",
+            preview: async () => await setConfiguration(focus, undefined)
+        }],
         makeEditSettingValueItemList(focus),
         makeSettingValueItemList(focus),
         makeSettingValueEditArrayItemList(focus)
