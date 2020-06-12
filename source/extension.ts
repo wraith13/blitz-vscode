@@ -77,13 +77,16 @@ interface SettingsFocus
     overrideInLanguage: boolean;
     entry: SettingsEntry;
 }
-const schemas: { [uri: string]: object } = { };
-const getSchema = async (uri: string, self?: any) =>
+class CommandContext
+{
+    public schemas: { [uri: string]: object } = { };
+}
+const getSchema = async (context: CommandContext, uri: string, self?: any) =>
     undefined !== uri && 0 < uri.length ?
     (
-        schemas[uri] ??
+        context.schemas[uri] ??
         (
-            schemas[uri] = JSON.parse
+            context.schemas[uri] = JSON.parse
             (
                 (
                     await vscode.workspace.openTextDocument
@@ -105,32 +108,32 @@ const getOjectWithPath = (current: any, path: string): any =>
     }
     return current;
 };
-const loadReference = async <T extends object>(self: any, current: T, reference: string): Promise<T> =>
+const loadReference = async <T extends object>(context: CommandContext, self: any, current: T, reference: string): Promise<T> =>
 {
     const parts = reference.split("#" );
     const uri = parts[0];
     const path = parts[1] ?? "";
     console.log(`loadReference: ${JSON.stringify({ uri, path, })}`);
-    const schema = await getSchema(uri, self);
+    const schema = await getSchema(context, uri, self);
     return Object.assign
     (
         current,
         getOjectWithPath(schema, path)
     );
 };
-const resolveReference = async <T extends { "$ref"?: string }>(self: any, current: T = self): Promise<T> =>
+const resolveReference = async <T extends { "$ref"?: string }>(context: CommandContext, self: any, current: T = self): Promise<T> =>
 {
     if (current && "object" === typeof current)
     {
         if (Array.isArray(current))
         {
-            await Promise.all(current.map(i => resolveReference(self, i)));
+            await Promise.all(current.map(i => resolveReference(context, self, i)));
         }
         else
         {
             if ("string" === typeof current.$ref)
             {
-                await loadReference(self, current, current.$ref);
+                await loadReference(context, self, current, current.$ref);
                 current.$ref = undefined;
             }
             else
@@ -139,14 +142,14 @@ const resolveReference = async <T extends { "$ref"?: string }>(self: any, curren
                 (
                     Object
                         .keys(current)
-                        .map(key => resolveReference(self, (<any>current)[key]))
+                        .map(key => resolveReference(context, self, (<any>current)[key]))
                 );
             }
         }
     }
     return current;
 };
-const getVscodeSettings = async (): Promise <SchemasSettingsDefault> => <SchemasSettingsDefault> await getSchema("vscode://schemas/settings/default");
+const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> => <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/default");
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
     preview?: () => Promise<unknown>;
@@ -258,9 +261,9 @@ export const extensionSettings = (): SettingsEntry[] => vscode.extensions.all
     .reduce((a, b) => a.concat(b), [ ]);
 export const makeConfigurationSection = (id: string) => id.replace(/^(.*)(\.)([^.]*)$/, "$1");
 export const makeConfigurationKey = (id: string) => id.replace(/^(.*)(\.)([^.]*)$/, "$3");
-export const aggregateSettings = async () =>
+export const aggregateSettings = async (context: CommandContext) =>
 {
-    const vscodeSettings = await getVscodeSettings();
+    const vscodeSettings = await getVscodeSettings(context);
     return Object.keys(vscodeSettings.properties)
         .map
         (
@@ -802,10 +805,10 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus): Command
     }
     return result;
 };
-export const selectContext = async (entry: SettingsEntry) =>
+export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
     console.log(`entry: ${ JSON.stringify(entry)}`);
-    await resolveReference(entry);
+    await resolveReference(context, entry);
     console.log(`entry2: ${ JSON.stringify(entry)}`);
 
     const contextMenuItemList: CommandMenuItem[] = [ ];
@@ -995,9 +998,9 @@ export const makeEditSettingDescription = (entry: SettingsEntry, value: any) =>
     +("string" === typeof entry.type ? entry.type: JSON.stringify(entry.type) )
     + " = "
     + JSON.stringify(value);
-export const editSettings = async () => await showQuickPick
+export const editSettings = async (context: CommandContext) => await showQuickPick
 (
-    (await aggregateSettings() ) .map
+    (await aggregateSettings(context) ) .map
     (
         entry =>
         ({
@@ -1013,7 +1016,7 @@ export const editSettings = async () => await showQuickPick
                 })
             ),
             detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
-            command: async () => await selectContext(entry),
+            command: async () => await selectContext(context, entry),
         })
     ),
     {
@@ -1026,7 +1029,7 @@ export const activate = (context: vscode.ExtensionContext) => context.subscripti
     vscode.commands.registerCommand
     (
         'blitz.editSettings',
-        async () => editSettings(),
+        async () => editSettings(new CommandContext()),
     )
 );
 export const deactivate = ( ) => { };
