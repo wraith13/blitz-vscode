@@ -805,22 +805,15 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus): Command
     }
     return result;
 };
-export const showDescriptionMenuItem = (id : string, description: string, goBack: () => Promise<unknown>) =>
-({
-    label: `Show Full Description`,
-    description: id,
-    command: async () =>
-    {
-        await vscode.window.showInformationMessage(description, { modal: true, });
-        await goBack();
-    },
-});
+export const makeFullDescription = (entry: SettingsEntry) =>
+{
+    const description = entry.description ?? markdownToPlaintext(entry.markdownDescription) ?? "(This setting item has no description)";
+    //const enumDescriptions
+    return description;
+};
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
-    console.log(`entry: ${ JSON.stringify(entry)}`);
-    await resolveReference(context, entry);
-    console.log(`entry2: ${ JSON.stringify(entry)}`);
-
+    console.log(`selectContext.entry: ${ JSON.stringify(entry)}`);
     const contextMenuItemList: CommandMenuItem[] = [ ];
     const languageId = getLanguageId();
     const values = inspectConfiguration
@@ -913,20 +906,40 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             }
         }
     }
-    let showMenu: () => Promise<unknown>;
-    const description = entry.description ?? markdownToPlaintext(entry.markdownDescription);
-    let showDescriptionMenu: CommandMenuItem | undefined = undefined;
-    if (undefined !== description && 32 < description.length)
+    const showDescriptionMenu =
     {
-        showDescriptionMenu = showDescriptionMenuItem(entry.id, description, async () => await showMenu());
-    }
+        label: `Show Full Description`,
+        description: entry.id,
+        command: async () =>
+        {
+            const editThisSettingItem = "Edit this setting item"; //"この設定項目を編集...";
+            const editOtherSetingItem = "Edit other setting item"; //"別の設定項目を選択...";
+            const cancel = "Cancel"; //"キャンセル";
+            switch
+            (
+                await vscode.window.showInformationMessage
+                (
+                    makeFullDescription(entry),
+                    { modal: true, },
+                    editThisSettingItem,
+                    editOtherSetingItem,
+                    cancel
+                )
+            )
+            {
+            case editThisSettingItem:
+                await selectContext(context, entry);
+                break;
+            case editOtherSetingItem:
+                await editSettings(context);
+                break;
+            }
+        },
+    };
     if (0 < contextMenuItemList.length)
     {
-        if (undefined !== showDescriptionMenu)
-        {
-            contextMenuItemList.splice(0, 0, showDescriptionMenu);
-        }
-        showMenu = async () => await showQuickPick
+        contextMenuItemList.splice(0, 0, showDescriptionMenu);
+        await showQuickPick
         (
             contextMenuItemList,
             {
@@ -937,17 +950,16 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     }
     else
     {
-        showMenu = async () => await editSettingItem
+        await editSettingItem
         (
             {
                 configurationTarget: vscode.ConfigurationTarget .Global,
                 overrideInLanguage: false,
                 entry
             },
-            <CommandMenuItem[]>[ showDescriptionMenu, ].filter(i => undefined !== i)
+            [ showDescriptionMenu, ]
         );
     }
-    await showMenu();
 };
 export const makeRollBackMethod =
 (
@@ -1039,7 +1051,7 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
                 })
             ),
             detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
-            command: async () => await selectContext(context, entry),
+            command: async () => await selectContext(context, await resolveReference(context, entry)),
         })
     ),
     {
