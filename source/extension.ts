@@ -71,15 +71,16 @@ interface SchemasSettingsDefault
     allowTrailingCommas: boolean;
     allowComments: boolean;
 };
-interface SettingsFocus
-{
-    configurationTarget: vscode.ConfigurationTarget;
-    overrideInLanguage: boolean;
-    entry: SettingsEntry;
-}
 class CommandContext
 {
     public schemas: { [uri: string]: object } = { };
+}
+interface SettingsFocus
+{
+    context: CommandContext;
+    configurationTarget: vscode.ConfigurationTarget;
+    overrideInLanguage: boolean;
+    entry: SettingsEntry;
 }
 const getSchema = async (context: CommandContext, uri: string, self?: any) =>
     undefined !== uri && 0 < uri.length ?
@@ -822,6 +823,47 @@ export const makeFullDescription = (entry: SettingsEntry) =>
     }
     return description;
 };
+const makeShowDescriptionMenu =
+(
+    focus:
+    {
+        context: CommandContext;
+        configurationTarget?: vscode.ConfigurationTarget;
+        overrideInLanguage?: boolean;
+        entry: SettingsEntry;
+    }
+): CommandMenuItem =>
+({
+    label: `Show Full Description`,
+    description: focus.entry.id,
+    command: async () =>
+    {
+        const editThisSettingItem = "Edit this setting item"; //"この設定項目を編集...";
+        const editOtherSetingItem = "Edit other setting item"; //"別の設定項目を選択...";
+        //const cancel = "Cancel"; //"キャンセル";
+        switch
+        (
+            await vscode.window.showInformationMessage
+            (
+                makeFullDescription(focus.entry),
+                { modal: true, },
+                editThisSettingItem,
+                editOtherSetingItem
+                //cancel
+            )
+        )
+        {
+        case editThisSettingItem:
+            undefined !== focus.configurationTarget && undefined !== focus.overrideInLanguage ?
+                await editSettingItem(<SettingsFocus>focus):
+                await selectContext(focus.context, focus.entry);
+            break;
+        case editOtherSetingItem:
+            await editSettings(focus.context);
+            break;
+        }
+    },
+});
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
     console.log(`selectContext.entry: ${ JSON.stringify(entry)}`);
@@ -829,6 +871,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     const languageId = getLanguageId();
     const values = inspectConfiguration
     ({
+        context,
         configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
         overrideInLanguage: true,
         entry
@@ -839,14 +882,16 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope && ConfigurationScope.WINDOW !== entry.scope));
     const languageOverridable = languageId &&
         (entry.overridable || undefined === entry.scope || ConfigurationScope.LANGUAGE_OVERRIDABLE === entry.scope);
+    const makeDescription = (defaultValue: any, value: any) => undefined !== value && value === defaultValue ? "default": undefined;
     if (workspaceOverridable || workspaceFolderOverridable || languageOverridable)
     {
         contextMenuItemList.push
         ({
             label: `Global: ${toStringForce((undefined !== values?.globalValue)? values?.globalValue: values?.defaultValue)}`,
-            description: (undefined === values?.globalValue || values?.globalValue === values?.defaultValue) ? "default": undefined,
+            description: makeDescription(values?.defaultValue, values?.globalValue ?? values?.defaultValue),
             command: async () => await editSettingItem
             ({
+                context,
                 configurationTarget: vscode.ConfigurationTarget.Global,
                 overrideInLanguage: false,
                 entry
@@ -857,9 +902,10 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             contextMenuItemList.push
             ({
                 label: `WorkspaceFolder: ${toStringForce(values?.workspaceValue)}`,
-                description: undefined !== values?.workspaceValue && values?.workspaceValue === values?.defaultValue ? "default": undefined,
+                description: makeDescription(values?.defaultValue, values?.workspaceValue),
                 command: async () => await editSettingItem
                 ({
+                    context,
                     configurationTarget: vscode.ConfigurationTarget.Workspace,
                     overrideInLanguage: false,
                     entry
@@ -871,9 +917,10 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             contextMenuItemList.push
             ({
                 label: `WorkspaceFolder: ${toStringForce(values?.workspaceFolderValue)}`,
-                description: undefined !== values?.workspaceFolderValue && values?.workspaceFolderValue === values?.defaultValue ? "default": undefined,
+                description: makeDescription(values?.defaultValue, values?.workspaceFolderValue),
                 command: async () => await editSettingItem
                 ({
+                    context,
                     configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
                     overrideInLanguage: false,
                     entry
@@ -885,9 +932,10 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             contextMenuItemList.push
             ({
                 label: `Global(lang:${languageId}): ${toStringForce((undefined !== values?.globalLanguageValue) ? values?.globalLanguageValue: values?.defaultLanguageValue)}`,
-                description: undefined !== values?.globalLanguageValue && values?.globalLanguageValue === values?.defaultLanguageValue ? "default": undefined,
+                description: makeDescription(values?.defaultLanguageValue, values?.globalLanguageValue),
                 command: async () => await editSettingItem
                 ({
+                    context,
                     configurationTarget: vscode.ConfigurationTarget.Global,
                     overrideInLanguage: true,
                     entry
@@ -898,9 +946,10 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                 contextMenuItemList.push
                 ({
                     label: `WorkspaceFolder(lang:${languageId}): ${toStringForce(values?.workspaceLanguageValue)}`,
-                    description: undefined !== values?.workspaceLanguageValue && values?.workspaceLanguageValue === values?.defaultLanguageValue ? "default": undefined,
+                    description: makeDescription(values?.defaultLanguageValue, values?.workspaceLanguageValue),
                     command: async () => await editSettingItem
                     ({
+                        context,
                         configurationTarget: vscode.ConfigurationTarget.Workspace,
                         overrideInLanguage: true,
                         entry
@@ -912,9 +961,10 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                 contextMenuItemList.push
                 ({
                     label: `WorkspaceFolder(lang:${languageId}): ${toStringForce(values?.workspaceFolderLanguageValue)}`,
-                    description: undefined !== values?.workspaceFolderLanguageValue && values?.workspaceFolderLanguageValue === values?.defaultLanguageValue ? "default": undefined,
+                    description: makeDescription(values?.defaultLanguageValue, values?.workspaceFolderLanguageValue),
                     command: async () => await editSettingItem
                     ({
+                        context,
                         configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
                         overrideInLanguage: true,
                         entry
@@ -923,41 +973,11 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             }
         }
     }
-    const showDescriptionMenu = <CommandMenuItem>
-    {
-        label: `Show Full Description`,
-        description: entry.id,
-        command: async () =>
-        {
-            const editThisSettingItem = "Edit this setting item"; //"この設定項目を編集...";
-            const editOtherSetingItem = "Edit other setting item"; //"別の設定項目を選択...";
-            //const cancel = "Cancel"; //"キャンセル";
-            switch
-            (
-                await vscode.window.showInformationMessage
-                (
-                    makeFullDescription(entry),
-                    { modal: true, },
-                    editThisSettingItem,
-                    editOtherSetingItem
-                    //cancel
-                )
-            )
-            {
-            case editThisSettingItem:
-                await selectContext(context, entry);
-                break;
-            case editOtherSetingItem:
-                await editSettings(context);
-                break;
-            }
-        },
-    };
     if (0 < contextMenuItemList.length)
     {
         await showQuickPick
         (
-            [ showDescriptionMenu, ].concat(contextMenuItemList),
+            [ makeShowDescriptionMenu({context, entry}), ].concat(contextMenuItemList),
             {
                 placeHolder: "Select a setting context.",
                 matchOnDescription: true,
@@ -967,14 +987,12 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     else
     {
         await editSettingItem
-        (
-            {
-                configurationTarget: vscode.ConfigurationTarget .Global,
-                overrideInLanguage: false,
-                entry
-            },
-            [ showDescriptionMenu, ]
-        );
+        ({
+            context,
+            configurationTarget: vscode.ConfigurationTarget .Global,
+            overrideInLanguage: false,
+            entry
+        });
     }
 };
 export const makeRollBackMethod =
@@ -986,15 +1004,17 @@ export const makeRollBackMethod =
         inspectConfiguration(focus)
     )
 ) => async () => await setConfiguration(focus, value);
-export const editSettingItem = async (focus: SettingsFocus, headMenuItemList: CommandMenuItem[] = [ ]) => await showQuickPick
+export const editSettingItem = async (focus: SettingsFocus) => await showQuickPick
 (
-    headMenuItemList
-    .concat
-    (
-        [{
+    [
+        makeShowDescriptionMenu(focus),
+        {
             label: "$(discard) Reset",
             preview: async () => await setConfiguration(focus, undefined)
-        }],
+        }
+    ]
+    .concat
+    (
         makeEditSettingValueItemList(focus),
         makeSettingValueItemList(focus),
         makeSettingValueEditArrayItemList(focus)
@@ -1072,6 +1092,7 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
                 entry,
                 getConfiguration
                 ({
+                    context,
                     configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
                     overrideInLanguage: true,
                     entry
