@@ -472,53 +472,60 @@ export const makeSettingValueItemList = (focus: SettingsFocus): CommandMenuItem[
             {
                 return 1;
             }
-            if (entry.enum)
+            if (typeof a.value === typeof b.value)
             {
-                const aEnumIndex = entry.enum.indexOf(a.value);
-                const bEnumIndex = entry.enum.indexOf(b.value);
-                if (aEnumIndex < bEnumIndex)
+                if (entry.enum)
                 {
-                    return -1;
+                    const aEnumIndex = entry.enum.indexOf(a.value);
+                    const bEnumIndex = entry.enum.indexOf(b.value);
+                    if (aEnumIndex < bEnumIndex)
+                    {
+                        return -1;
+                    }
+                    if (aEnumIndex > bEnumIndex)
+                    {
+                        return 1;
+                    }
                 }
-                if (aEnumIndex > bEnumIndex)
+                if ("number" === typeof a.value && "number" === typeof b.value)
                 {
-                    return 1;
+                    if (a < b)
+                    {
+                        return -1;
+                    }
+                    if (a > b)
+                    {
+                        return 1;
+                    }
+                }
+                if ("string" === typeof a.value && "string" === typeof b.value)
+                {
+                    if (a < b)
+                    {
+                        return -1;
+                    }
+                    if (a > b)
+                    {
+                        return 1;
+                    }
+                }
+                if ("object" === typeof a.value && "object" === typeof b.value)
+                {
+                    const aJson = JSON.stringify(a.value);
+                    const bJson = JSON.stringify(b.value);
+                    if (aJson < bJson)
+                    {
+                        return -1;
+                    }
+                    if (aJson > bJson)
+                    {
+                        return 1;
+                    }
                 }
             }
-            if ("number" === typeof a.value && "number" === typeof b.value)
+            else
             {
-                if (a < b)
-                {
-                    return -1;
-                }
-                if (a > b)
-                {
-                    return 1;
-                }
-            }
-            if ("string" === typeof a.value && "string" === typeof b.value)
-            {
-                if (a < b)
-                {
-                    return -1;
-                }
-                if (a > b)
-                {
-                    return 1;
-                }
-            }
-            if ("object" === typeof a.value && "object" === typeof b.value)
-            {
-                const aJson = JSON.stringify(a.value);
-                const bJson = JSON.stringify(b.value);
-                if (aJson < bJson)
-                {
-                    return -1;
-                }
-                if (aJson > bJson)
-                {
-                    return 1;
-                }
+                console.log(`Uncomparable values: ${JSON.stringify({ a, b })}`);
             }
             return 0;
         }
@@ -807,8 +814,12 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus): Command
 };
 export const makeFullDescription = (entry: SettingsEntry) =>
 {
-    const description = entry.description ?? markdownToPlaintext(entry.markdownDescription) ?? "(This setting item has no description)";
-    //const enumDescriptions
+    let description = entry.description ?? markdownToPlaintext(entry.markdownDescription) ?? "(This setting item has no description)";
+    const enumDescriptions = (entry.enumDescriptions ?? entry.markdownEnumDescriptions?.map(markdownToPlaintext));
+    if (entry.enum && 0 < entry.enum.length && enumDescriptions && 0 < enumDescriptions.length)
+    {
+        description = [ description, "", ].concat(entry.enum.map((v, i) => `${v}: ${enumDescriptions[i]}`)).join("\n");
+    }
     return description;
 };
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
@@ -833,6 +844,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         contextMenuItemList.push
         ({
             label: `Global: ${toStringForce((undefined !== values?.globalValue)? values?.globalValue: values?.defaultValue)}`,
+            description: (undefined === values?.globalValue || values?.globalValue === values?.defaultValue) ? "default": undefined,
             command: async () => await editSettingItem
             ({
                 configurationTarget: vscode.ConfigurationTarget.Global,
@@ -845,6 +857,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             contextMenuItemList.push
             ({
                 label: `WorkspaceFolder: ${toStringForce(values?.workspaceValue)}`,
+                description: undefined !== values?.workspaceValue && values?.workspaceValue === values?.defaultValue ? "default": undefined,
                 command: async () => await editSettingItem
                 ({
                     configurationTarget: vscode.ConfigurationTarget.Workspace,
@@ -858,6 +871,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             contextMenuItemList.push
             ({
                 label: `WorkspaceFolder: ${toStringForce(values?.workspaceFolderValue)}`,
+                description: undefined !== values?.workspaceFolderValue && values?.workspaceFolderValue === values?.defaultValue ? "default": undefined,
                 command: async () => await editSettingItem
                 ({
                     configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
@@ -871,6 +885,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             contextMenuItemList.push
             ({
                 label: `Global(lang:${languageId}): ${toStringForce((undefined !== values?.globalLanguageValue) ? values?.globalLanguageValue: values?.defaultLanguageValue)}`,
+                description: undefined !== values?.globalLanguageValue && values?.globalLanguageValue === values?.defaultLanguageValue ? "default": undefined,
                 command: async () => await editSettingItem
                 ({
                     configurationTarget: vscode.ConfigurationTarget.Global,
@@ -883,6 +898,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                 contextMenuItemList.push
                 ({
                     label: `WorkspaceFolder(lang:${languageId}): ${toStringForce(values?.workspaceLanguageValue)}`,
+                    description: undefined !== values?.workspaceLanguageValue && values?.workspaceLanguageValue === values?.defaultLanguageValue ? "default": undefined,
                     command: async () => await editSettingItem
                     ({
                         configurationTarget: vscode.ConfigurationTarget.Workspace,
@@ -896,6 +912,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                 contextMenuItemList.push
                 ({
                     label: `WorkspaceFolder(lang:${languageId}): ${toStringForce(values?.workspaceFolderLanguageValue)}`,
+                    description: undefined !== values?.workspaceFolderLanguageValue && values?.workspaceFolderLanguageValue === values?.defaultLanguageValue ? "default": undefined,
                     command: async () => await editSettingItem
                     ({
                         configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
@@ -906,7 +923,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             }
         }
     }
-    const showDescriptionMenu =
+    const showDescriptionMenu = <CommandMenuItem>
     {
         label: `Show Full Description`,
         description: entry.id,
@@ -914,7 +931,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         {
             const editThisSettingItem = "Edit this setting item"; //"この設定項目を編集...";
             const editOtherSetingItem = "Edit other setting item"; //"別の設定項目を選択...";
-            const cancel = "Cancel"; //"キャンセル";
+            //const cancel = "Cancel"; //"キャンセル";
             switch
             (
                 await vscode.window.showInformationMessage
@@ -922,8 +939,8 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                     makeFullDescription(entry),
                     { modal: true, },
                     editThisSettingItem,
-                    editOtherSetingItem,
-                    cancel
+                    editOtherSetingItem
+                    //cancel
                 )
             )
             {
@@ -938,10 +955,9 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     };
     if (0 < contextMenuItemList.length)
     {
-        contextMenuItemList.splice(0, 0, showDescriptionMenu);
         await showQuickPick
         (
-            contextMenuItemList,
+            [ showDescriptionMenu, ].concat(contextMenuItemList),
             {
                 placeHolder: "Select a setting context.",
                 matchOnDescription: true,
@@ -1022,6 +1038,17 @@ export const makeConfigurationScope =
     return undefined;
 };
 export const getLanguageId = () => vscode.window.activeTextEditor?.document.languageId;
+export const makeDisplayType = (entry: SettingsEntry) =>
+{
+    let result = "string" === typeof entry.type ?
+        entry.type:
+        JSON.stringify(entry.type);
+    if ("string" === result && entry.enum)
+    {
+        result = "enum";
+    }
+    return result;
+};
 export const makeEditSettingDescription = (entry: SettingsEntry, value: any) =>
     (
         JSON.stringify(getDefaultValue(entry)) === JSON.stringify(value) ?
@@ -1030,7 +1057,7 @@ export const makeEditSettingDescription = (entry: SettingsEntry, value: any) =>
     )
     + entry.id
     + ": "
-    +("string" === typeof entry.type ? entry.type: JSON.stringify(entry.type) )
+    + makeDisplayType(entry)
     + " = "
     + JSON.stringify(value);
 export const editSettings = async (context: CommandContext) => await showQuickPick
