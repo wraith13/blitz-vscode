@@ -343,7 +343,7 @@ export const getConfiguration = <T>(focus: SettingsFocus): T | undefined => vsco
 (
     makeConfigurationKey(focus.entry.id)
 );
-export const setConfiguration = async <T>
+export const setConfigurationRaw = async <T>
 (
     focus: SettingsFocus,
     value: T
@@ -359,6 +359,52 @@ export const setConfiguration = async <T>
     focus.configurationTarget,
     focus.overrideInLanguage
 );
+interface UndoEntry
+{
+    focus: SettingsFocus;
+    oldValue: any;
+    newValue: any;
+};
+const undoBuffer: UndoEntry[] = [];
+const redoBuffer: UndoEntry[] = [];
+export const setConfiguration = async <T>
+(
+    focus: SettingsFocus,
+    value: T
+) =>
+{
+    const entry: UndoEntry =
+    {
+        focus,
+        oldValue: getValueFromInspectResult
+        (
+            focus,
+            inspectConfiguration(focus)
+        ),
+        newValue: value,
+    };
+    redoBuffer.splice(0, redoBuffer.length);
+    undoBuffer.push(entry);
+    await setConfigurationRaw(entry.focus, entry.newValue);
+};
+export const UndoConfiguration = async () =>
+{
+    const entry = undoBuffer.pop();
+    if (undefined !== entry)
+    {
+        redoBuffer.push(entry);
+        await setConfigurationRaw(entry.focus, entry.oldValue);
+    }
+};
+export const RedoConfiguration = async () =>
+{
+    const entry = redoBuffer.pop();
+    if (undefined !== entry)
+    {
+        undoBuffer.push(entry);
+        await setConfigurationRaw(entry.focus, entry.newValue);
+    }
+};
 export const getProperties = (entry: SettingsEntry) =>
 {
     const properties = Object.assign({ }, entry.properties ?? { });
@@ -373,17 +419,19 @@ export const getProperties = (entry: SettingsEntry) =>
 export const makeSettingValueItem = <T>
 (
     focus: SettingsFocus,
-    value: T,
+    oldValue: T,
+    newValue: T,
     description?: string,
     detail?: string
 ) =>
 ({
-    label: `$(tag) ${JSON.stringify(value)}`,
+    label: `$(tag) ${JSON.stringify(newValue)}`,
     description,
     detail,
-    preview: async () => await setConfiguration(focus, value)
+    preview: async () => await setConfigurationRaw(focus, newValue),
+    command: async () => undoBuffer.push({ focus, oldValue, newValue}),
 });
-export const makeSettingValueItemList = (focus: SettingsFocus): CommandMenuItem[] =>
+export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
 {
     const entry = focus.entry;
     const list: { value: any, description: string[], detail?: string }[ ] = [ ];
@@ -603,9 +651,9 @@ async (
 export const toStringOfDefault = (value: any, defaultValue: any) => undefined === value ?
     defaultValue:
     JSON.stringify(value);
-export const toStringOrUndefined = ( value: any) => toStringOfDefault(value, undefined);
-export const toStringForce = ( value: any) => toStringOfDefault(value, "undefined" );
-export const makeEditSettingValueItemList = ( focus: SettingsFocus): CommandMenuItem[] =>
+export const toStringOrUndefined = (value: any) => toStringOfDefault(value, undefined);
+export const toStringForce = (value: any) => toStringOfDefault(value, "undefined" );
+export const makeEditSettingValueItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
@@ -757,7 +805,7 @@ export const makeEditSettingValueItemList = ( focus: SettingsFocus): CommandMenu
     }
     return result;
 };
-export const makeSettingValueEditArrayItemList = (focus: SettingsFocus): CommandMenuItem[] =>
+export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
@@ -995,33 +1043,35 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         });
     }
 };
-export const makeRollBackMethod =
-(
+export const makeRollBackMethod = (focus: SettingsFocus, value: any) =>
+    async () => await setConfigurationRaw(focus, value);
+export const editSettingItem =
+async (
     focus: SettingsFocus,
-    value = getValueFromInspectResult
+    oldValue = getValueFromInspectResult
     (
         focus,
         inspectConfiguration(focus)
     )
-) => async () => await setConfiguration(focus, value);
-export const editSettingItem = async (focus: SettingsFocus) => await showQuickPick
+) => await showQuickPick
 (
     [
         makeShowDescriptionMenu(focus),
         {
             label: "$(discard) Reset",
-            preview: async () => await setConfiguration(focus, undefined)
+            preview: async () => await setConfigurationRaw(focus, undefined),
+            command: async () => undoBuffer.push({ focus, oldValue, newValue: undefined}),
         }
     ]
     .concat
     (
-        makeEditSettingValueItemList(focus),
-        makeSettingValueItemList(focus),
-        makeSettingValueEditArrayItemList(focus)
+        makeEditSettingValueItemList(focus, oldValue),
+        makeSettingValueItemList(focus, oldValue),
+        makeSettingValueEditArrayItemList(focus, oldValue)
     ),
     {
         placeHolder: `${makeSettingLabel(focus.entry)} ( ${focus.entry.id} ):`,
-        rollback: makeRollBackMethod(focus),
+        rollback: makeRollBackMethod(focus, oldValue),
         // ignoreFocusOut: true,
     }
 );
