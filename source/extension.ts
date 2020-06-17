@@ -82,6 +82,18 @@ interface SettingsFocus
     overrideInLanguage: boolean;
     entry: SettingsEntry;
 }
+const makePointer = (focus: SettingsFocus): SettingsPointer =>
+({
+    configurationTarget: focus.configurationTarget,
+    overrideInLanguage: focus.overrideInLanguage,
+    id: focus.entry.id,
+});
+interface SettingsPointer
+{
+    configurationTarget: vscode.ConfigurationTarget;
+    overrideInLanguage: boolean;
+    id: string;
+}
 const getSchema = async (context: CommandContext, uri: string, self?: any) =>
     undefined !== uri && 0 < uri.length ?
     (
@@ -277,14 +289,14 @@ export const aggregateSettings = async (context: CommandContext) =>
             )
         );
 };
-export const inspectConfiguration = <T>(focus: SettingsFocus) => vscode.workspace.getConfiguration
+export const inspectConfiguration = <T>(pointer: SettingsPointer) => vscode.workspace.getConfiguration
 (
-    makeConfigurationSection(focus.entry.id),
-    makeConfigurationScope(focus)
+    makeConfigurationSection(pointer.id),
+    makeConfigurationScope(pointer)
 )
 .inspect<T>
 (
-    makeConfigurationKey(focus.entry.id)
+    makeConfigurationKey(pointer.id)
 );
 export const getValueFromInspectResult =
 <T>(
@@ -334,34 +346,34 @@ export const getValueFromInspectResult =
     }
     return undefined;
 };
-export const getConfiguration = <T>(focus: SettingsFocus): T | undefined => vscode.workspace.getConfiguration
+export const getConfiguration = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
 (
-    makeConfigurationSection(focus.entry.id),
-    makeConfigurationScope(focus)
+    makeConfigurationSection(pointer.id),
+    makeConfigurationScope(pointer)
 )
 .get<T>
 (
-    makeConfigurationKey(focus.entry.id)
+    makeConfigurationKey(pointer.id)
 );
 export const setConfigurationRaw =
 async (
-    focus: SettingsFocus,
+    pointer: SettingsPointer,
     value: unknown
 ) => await vscode.workspace.getConfiguration
 (
-    makeConfigurationSection(focus.entry.id),
-    makeConfigurationScope(focus)
+    makeConfigurationSection(pointer.id),
+    makeConfigurationScope(pointer)
 )
 .update
 (
-    makeConfigurationKey(focus.entry.id),
+    makeConfigurationKey(pointer.id),
     value,
-    focus.configurationTarget,
-    focus.overrideInLanguage
+    pointer.configurationTarget,
+    pointer.overrideInLanguage
 );
 interface UndoEntry
 {
-    focus: SettingsFocus;
+    pointer: SettingsPointer;
     newValue: unknown;
     oldValue: unknown;
 };
@@ -369,19 +381,19 @@ const undoBuffer: UndoEntry[] = [];
 const redoBuffer: UndoEntry[] = [];
 const makeUndoEntry =
 (
-    focus: SettingsFocus,
+    pointer: SettingsPointer,
     newValue: unknown,
     oldValue: unknown = getValueFromInspectResult
     (
-        focus,
-        inspectConfiguration(focus)
+        pointer,
+        inspectConfiguration(pointer)
     )
-) => ({ focus, oldValue, newValue, });
+) => ({ pointer, oldValue, newValue, });
 export const setConfiguration = async (entry: UndoEntry) =>
 {
     redoBuffer.splice(0, redoBuffer.length);
     undoBuffer.push(entry);
-    await setConfigurationRaw(entry.focus, entry.newValue);
+    await setConfigurationRaw(entry.pointer, entry.newValue);
 };
 export const UndoConfiguration = async () =>
 {
@@ -389,7 +401,7 @@ export const UndoConfiguration = async () =>
     if (undefined !== entry)
     {
         redoBuffer.push(entry);
-        await setConfigurationRaw(entry.focus, entry.oldValue);
+        await setConfigurationRaw(entry.pointer, entry.oldValue);
     }
 };
 export const RedoConfiguration = async () =>
@@ -398,7 +410,7 @@ export const RedoConfiguration = async () =>
     if (undefined !== entry)
     {
         undoBuffer.push(entry);
-        await setConfigurationRaw(entry.focus, entry.newValue);
+        await setConfigurationRaw(entry.pointer, entry.newValue);
     }
 };
 export const getProperties = (entry: SettingsEntry) =>
@@ -422,11 +434,12 @@ export const makeSettingValueItem =
     label: `$(tag) ${JSON.stringify(entry.newValue)}`,
     description,
     detail,
-    preview: async () => await setConfigurationRaw(entry.focus, entry.newValue),
+    preview: async () => await setConfigurationRaw(entry.pointer, entry.newValue),
     command: async () => await setConfiguration(entry),
 });
 export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
 {
+    const pointer = makePointer(focus);
     const entry = focus.entry;
     const list: { value: any, description: string[], detail?: string }[ ] = [ ];
     const register = (value: any, description?: string, detail?: string) =>
@@ -484,7 +497,7 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
         );
     }
     register(getDefaultValue(entry), "default");
-    register(getConfiguration(focus), "current");
+    register(getConfiguration(pointer), "current");
     const typeIndexOf = (value: any) =>
     {
         switch(typeof value)
@@ -577,7 +590,7 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
     (
         i => makeSettingValueItem
         (
-            makeUndoEntry(focus, i.value, oldValue),
+            makeUndoEntry(pointer, i.value, oldValue),
             0 < i.description.length ? i.description.join(", "): undefined,
             i.detail
         )
@@ -617,7 +630,8 @@ async (
     value: string = toStringOrUndefined(oldValue)
 ) =>
 {
-    const rollback = makeRollBackMethod(focus, oldValue);
+    const pointer = makePointer(focus);
+    const rollback = makeRollBackMethod(pointer, oldValue);
     const input = await vscode.window.showInputBox
     ({
         value,
@@ -626,7 +640,7 @@ async (
             const result = validateInput(input);
             if (undefined === result || null === result)
             {
-                await setConfigurationRaw(focus, parser(input));
+                await setConfigurationRaw(pointer, parser(input));
             }
             return result;
         }
@@ -634,7 +648,7 @@ async (
     if (undefined !== input)
     {
         const newValue = parser(input);
-        await setConfiguration({ focus, newValue, oldValue, });
+        await setConfiguration({ pointer, newValue, oldValue, });
     }
     else
     {
@@ -811,11 +825,12 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
 };
 export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
 {
+    const pointer = makePointer(focus);
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
     {
-        const array = getConfiguration <any[]> (focus) ?? [ ];
+        const array = getConfiguration <any[]> (pointer) ?? [ ];
         if (Array.isArray(array))
         {
             if (entry.items?.type && hasType(entry.items, "null"))
@@ -824,8 +839,8 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                 result.push
                 ({
                     label: `$(add) Add null item`,
-                    preview: async () => await setConfigurationRaw(focus, newValue),
-                    command: async () => await setConfiguration({ focus, newValue, oldValue, }),
+                    preview: async () => await setConfigurationRaw(pointer, newValue),
+                    command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                 }); }
             if ( ! entry.items?.type || hasType(entry.items, "string"))
             {
@@ -850,8 +865,8 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                     result.push
                     ({
                         label: `$(remove) Remove "${toStringOrUndefined(item)}"`,
-                        preview: async () => await setConfigurationRaw(focus, newValue),
-                        command: async () => await setConfiguration({ focus, newValue, oldValue, }),
+                        preview: async () => await setConfigurationRaw(pointer, newValue),
+                        command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                     });
                 }
             );
@@ -917,10 +932,9 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     const languageId = getLanguageId();
     const values = inspectConfiguration
     ({
-        context,
         configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
         overrideInLanguage: true,
-        entry
+        id: entry.id
     });
     const workspaceOverridable = 0 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
         (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope));
@@ -1041,24 +1055,25 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         });
     }
 };
-export const makeRollBackMethod = (focus: SettingsFocus, value: any) =>
-    async () => await setConfigurationRaw(focus, value);
+export const makeRollBackMethod = (pointer: SettingsPointer, value: any) =>
+    async () => await setConfigurationRaw(pointer, value);
 export const editSettingItem =
 async (
     focus: SettingsFocus,
+    pointer =  makePointer(focus),
     oldValue = getValueFromInspectResult
     (
         focus,
-        inspectConfiguration(focus)
-    )
+        inspectConfiguration(pointer)
+    ),
 ) => await showQuickPick
 (
     [
         makeShowDescriptionMenu(focus),
         {
             label: "$(discard) Reset",
-            preview: async () => await setConfigurationRaw(focus, undefined),
-            command: async () => await setConfiguration({ focus, newValue: undefined, oldValue, }),
+            preview: async () => await setConfigurationRaw(pointer, undefined),
+            command: async () => await setConfiguration({ pointer, newValue: undefined, oldValue, }),
         }
     ]
     .concat
@@ -1069,7 +1084,7 @@ async (
     ),
     {
         placeHolder: `${makeSettingLabel(focus.entry)} ( ${focus.entry.id} ):`,
-        rollback: makeRollBackMethod(focus, oldValue),
+        rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
     }
 );
@@ -1140,10 +1155,9 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
                 entry,
                 getConfiguration
                 ({
-                    context,
                     configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
                     overrideInLanguage: true,
-                    entry
+                    id: entry.id,
                 })
             ),
             detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
