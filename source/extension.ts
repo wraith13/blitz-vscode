@@ -75,11 +75,14 @@ class CommandContext
 {
     public schemas: { [uri: string]: object } = { };
 }
-interface SettingsFocus
+interface SettingsContext
 {
-    context: CommandContext;
     configurationTarget: vscode.ConfigurationTarget;
     overrideInLanguage: boolean;
+}
+interface SettingsFocus extends SettingsContext
+{
+    context: CommandContext;
     entry: SettingsEntry;
 }
 const makePointer = (focus: SettingsFocus): SettingsPointer =>
@@ -88,10 +91,8 @@ const makePointer = (focus: SettingsFocus): SettingsPointer =>
     overrideInLanguage: focus.overrideInLanguage,
     id: focus.entry.id,
 });
-interface SettingsPointer
+interface SettingsPointer extends SettingsContext
 {
-    configurationTarget: vscode.ConfigurationTarget;
-    overrideInLanguage: boolean;
     id: string;
 }
 const getSchema = async (context: CommandContext, uri: string, self?: any) =>
@@ -925,6 +926,44 @@ const makeShowDescriptionMenu =
         }
     },
 });
+export const makeContextLabel = (pointer: SettingsContext) =>
+{
+    if (pointer.overrideInLanguage)
+    {
+        const languageId = getLanguageId(); // 🔥 Undo/Redo 時に正しく機能しないのでこれはダメ！！！
+        switch(pointer.configurationTarget)
+        {
+        case vscode.ConfigurationTarget.Global:
+            return `Global(lang:${languageId})`;
+        case vscode.ConfigurationTarget.Workspace:
+            return `Workspace(lang:${languageId})`;
+        case vscode.ConfigurationTarget.WorkspaceFolder:
+            return `WorkspaceFolder(lang:${languageId})`;
+        default:
+            return `UNKNOWN(lang:${languageId})`;
+        }
+    }
+    else
+    {
+        switch(pointer.configurationTarget)
+        {
+        case vscode.ConfigurationTarget.Global:
+            return `Global`;
+        case vscode.ConfigurationTarget.Workspace:
+            return `Workspace`;
+        case vscode.ConfigurationTarget.WorkspaceFolder:
+            return `WorkspaceFolder`;
+        default:
+            return `UNKNOWN`;
+        }
+    }
+};
+export const makeContextMenuItem = (focus: SettingsFocus, value: string, description: string | undefined): CommandMenuItem =>
+({
+    label: `${makeContextLabel(focus)}: ${value}`,
+    description,
+    command: async () => await editSettingItem(focus),
+});
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
     console.log(`selectContext.entry: ${ JSON.stringify(entry)}`);
@@ -946,90 +985,102 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     if (workspaceOverridable || workspaceFolderOverridable || languageOverridable)
     {
         contextMenuItemList.push
-        ({
-            label: `Global: ${toStringForce((undefined !== values?.globalValue)? values?.globalValue: values?.defaultValue)}`,
-            description: makeDescription(values?.defaultValue, values?.globalValue ?? values?.defaultValue),
-            command: async () => await editSettingItem
-            ({
-                context,
-                configurationTarget: vscode.ConfigurationTarget.Global,
-                overrideInLanguage: false,
-                entry
-            })
-        });
+        (
+            makeContextMenuItem
+            (
+                {
+                    context,
+                    configurationTarget: vscode.ConfigurationTarget.Global,
+                    overrideInLanguage: false,
+                    entry
+                },
+                toStringForce((undefined !== values?.globalValue)? values?.globalValue: values?.defaultValue),
+                makeDescription(values?.defaultValue, values?.globalValue ?? values?.defaultValue)
+            )
+        );
         if (workspaceOverridable)
         {
             contextMenuItemList.push
-            ({
-                label: `WorkspaceFolder: ${toStringForce(values?.workspaceValue)}`,
-                description: makeDescription(values?.defaultValue, values?.workspaceValue),
-                command: async () => await editSettingItem
-                ({
-                    context,
-                    configurationTarget: vscode.ConfigurationTarget.Workspace,
-                    overrideInLanguage: false,
-                    entry
-                })
-            });
+            (
+                makeContextMenuItem
+                (
+                    {
+                        context,
+                        configurationTarget: vscode.ConfigurationTarget.Workspace,
+                        overrideInLanguage: false,
+                        entry
+                    },
+                    toStringForce(values?.workspaceValue),
+                    makeDescription(values?.defaultValue, values?.workspaceValue)
+                )
+            );
         }
         if (workspaceFolderOverridable)
         {
             contextMenuItemList.push
-            ({
-                label: `WorkspaceFolder: ${toStringForce(values?.workspaceFolderValue)}`,
-                description: makeDescription(values?.defaultValue, values?.workspaceFolderValue),
-                command: async () => await editSettingItem
-                ({
-                    context,
-                    configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                    overrideInLanguage: false,
-                    entry
-                })
-            });
+            (
+                makeContextMenuItem
+                (
+                    {
+                        context,
+                        configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                        overrideInLanguage: false,
+                        entry
+                    },
+                    toStringForce(values?.workspaceFolderValue),
+                    makeDescription(values?.defaultValue, values?.workspaceFolderValue)
+                )
+            );
         }
         if (languageOverridable)
         {
             contextMenuItemList.push
-            ({
-                label: `Global(lang:${languageId}): ${toStringForce((undefined !== values?.globalLanguageValue) ? values?.globalLanguageValue: values?.defaultLanguageValue)}`,
-                description: makeDescription(values?.defaultLanguageValue, values?.globalLanguageValue),
-                command: async () => await editSettingItem
-                ({
-                    context,
-                    configurationTarget: vscode.ConfigurationTarget.Global,
-                    overrideInLanguage: true,
-                    entry
-                })
-            });
+            (
+                makeContextMenuItem
+                (
+                    {
+                        context,
+                        configurationTarget: vscode.ConfigurationTarget.Global,
+                        overrideInLanguage: true,
+                        entry
+                    },
+                    toStringForce((undefined !== values?.globalLanguageValue) ? values?.globalLanguageValue: values?.defaultLanguageValue),
+                    makeDescription(values?.defaultLanguageValue, values?.globalLanguageValue)
+                )
+            );
             if (workspaceOverridable)
             {
                 contextMenuItemList.push
-                ({
-                    label: `WorkspaceFolder(lang:${languageId}): ${toStringForce(values?.workspaceLanguageValue)}`,
-                    description: makeDescription(values?.defaultLanguageValue, values?.workspaceLanguageValue),
-                    command: async () => await editSettingItem
-                    ({
-                        context,
-                        configurationTarget: vscode.ConfigurationTarget.Workspace,
-                        overrideInLanguage: true,
-                        entry
-                    })
-                });
+                (
+                    makeContextMenuItem
+                    (
+                        {
+                            context,
+                            configurationTarget: vscode.ConfigurationTarget.Workspace,
+                            overrideInLanguage: true,
+                            entry
+                        },
+                        toStringForce(values?.workspaceLanguageValue),
+                        makeDescription(values?.defaultLanguageValue, values?.workspaceLanguageValue)
+                    )
+                );
             }
             if (workspaceFolderOverridable)
             {
                 contextMenuItemList.push
-                ({
-                    label: `WorkspaceFolder(lang:${languageId}): ${toStringForce(values?.workspaceFolderLanguageValue)}`,
-                    description: makeDescription(values?.defaultLanguageValue, values?.workspaceFolderLanguageValue),
-                    command: async () => await editSettingItem
-                    ({
-                        context,
-                        configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                        overrideInLanguage: true,
-                        entry
-                    })
-                });
+                (
+                    makeContextMenuItem
+                    (
+                        {
+                            context,
+                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                            overrideInLanguage: true,
+                            entry
+                        },
+                        toStringForce(values?.workspaceFolderLanguageValue),
+                        makeDescription(values?.defaultLanguageValue, values?.workspaceFolderLanguageValue)
+                    )
+                );
             }
         }
     }
@@ -1083,12 +1134,12 @@ async (
         makeSettingValueEditArrayItemList(focus, oldValue)
     ),
     {
-        placeHolder: `${makeSettingLabel(focus.entry)} ( ${focus.entry.id} ):`,
+        placeHolder: `${makeSettingLabel(focus.entry.id)} ( ${focus.entry.id} ):`,
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
     }
 );
-export const makeSettingLabel = (entry: SettingsEntry) =>　entry.id
+export const makeSettingLabel = (id: string) =>　id
     .replace(/\./mg, ": ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/(^|\s)([a-z])/g,(_s, m1, m2) => `${m1}${m2.toUpperCase()}`);
@@ -1143,26 +1194,56 @@ export const makeEditSettingDescription = (entry: SettingsEntry, value: any) =>
     + makeDisplayType(entry)
     + " = "
     + JSON.stringify(value);
+export const makeUndoMenu = (): CommandMenuItem[] =>
+{
+    const result: CommandMenuItem[] = [];
+    if (0 < undoBuffer.length)
+    {
+        const entry = undoBuffer[undoBuffer.length -1];
+        result.push
+        ({
+            label: `$(debug-step-back) Undo`,
+            detail: `${makeSettingLabel(entry.pointer.id)}(${makeContextLabel(entry.pointer)}): ${toStringForce(entry.newValue)} $(arrow-right) ${toStringForce(entry.oldValue)}`,
+            command: async () => await UndoConfiguration(),
+        });
+    }
+    if (0 < redoBuffer.length)
+    {
+        const entry = redoBuffer[redoBuffer.length -1];
+        result.push
+        ({
+            label: `$(debug-step-over) Redo`,
+            description: makeContextLabel(entry.pointer),
+            detail: `${makeSettingLabel(entry.pointer.id)}(${makeContextLabel(entry.pointer)}): ${toStringForce(entry.oldValue)} $(arrow-right) ${toStringForce(entry.newValue)}`,
+            command: async () => await RedoConfiguration(),
+        });
+    }
+    return result;
+};
 export const editSettings = async (context: CommandContext) => await showQuickPick
 (
-    (await aggregateSettings(context) ) .map
+    makeUndoMenu()
+    .concat
     (
-        entry =>
-        ({
-            label: makeSettingLabel(entry),
-            description: makeEditSettingDescription
-            (
-                entry,
-                getConfiguration
-                ({
-                    configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                    overrideInLanguage: true,
-                    id: entry.id,
-                })
-            ),
-            detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
-            command: async () => await selectContext(context, await resolveReference(context, entry)),
-        })
+        (await aggregateSettings(context) ) .map
+        (
+            entry =>
+            ({
+                label: `$(settings-gear) ${makeSettingLabel(entry.id)}`,
+                description: makeEditSettingDescription
+                (
+                    entry,
+                    getConfiguration
+                    ({
+                        configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                        overrideInLanguage: true,
+                        id: entry.id,
+                    })
+                ),
+                detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
+                command: async () => await selectContext(context, await resolveReference(context, entry)),
+            })
+        )
     ),
     {
         placeHolder: "Select a setting item.",
