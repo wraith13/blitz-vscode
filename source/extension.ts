@@ -90,10 +90,12 @@ const makePointer = (focus: SettingsFocus): SettingsPointer =>
     configurationTarget: focus.configurationTarget,
     overrideInLanguage: focus.overrideInLanguage,
     id: focus.entry.id,
+    scope: makeConfigurationScope(focus),
 });
 interface SettingsPointer extends SettingsContext
 {
     id: string;
+    scope: vscode.ConfigurationScope | null | undefined;
 }
 const getSchema = async (context: CommandContext, uri: string, self?: any) =>
     undefined !== uri && 0 < uri.length ?
@@ -293,7 +295,7 @@ export const aggregateSettings = async (context: CommandContext) =>
 export const inspectConfiguration = <T>(pointer: SettingsPointer) => vscode.workspace.getConfiguration
 (
     makeConfigurationSection(pointer.id),
-    makeConfigurationScope(pointer)
+    pointer.scope
 )
 .inspect<T>
 (
@@ -350,7 +352,7 @@ export const getValueFromInspectResult =
 export const getConfiguration = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
 (
     makeConfigurationSection(pointer.id),
-    makeConfigurationScope(pointer)
+    pointer.scope
 )
 .get<T>
 (
@@ -363,7 +365,7 @@ async (
 ) => await vscode.workspace.getConfiguration
 (
     makeConfigurationSection(pointer.id),
-    makeConfigurationScope(pointer)
+    pointer.scope
 )
 .update
 (
@@ -896,7 +898,7 @@ const makeShowDescriptionMenu =
     }
 ): CommandMenuItem =>
 ({
-    label: `Show Full Description`,
+    label: `$(comment) Show Full Description`,
     description: focus.entry.id,
     command: async () =>
     {
@@ -926,21 +928,21 @@ const makeShowDescriptionMenu =
         }
     },
 });
-export const makeContextLabel = (pointer: SettingsContext) =>
+export const makeContextLabel = (pointer: SettingsPointer) =>
 {
-    if (pointer.overrideInLanguage)
+    const languageId = (<{ uri: vscode.Uri | undefined, languageId: string, }>(<SettingsPointer>pointer).scope)?.languageId;
+    if (languageId)
     {
-        const languageId = getLanguageId(); // 🔥 Undo/Redo 時に正しく機能しないのでこれはダメ！！！
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
-            return `Global(lang:${languageId})`;
+            return `Global[lang:${languageId}]`;
         case vscode.ConfigurationTarget.Workspace:
-            return `Workspace(lang:${languageId})`;
+            return `Workspace[lang:${languageId}]`;
         case vscode.ConfigurationTarget.WorkspaceFolder:
-            return `WorkspaceFolder(lang:${languageId})`;
+            return `WorkspaceFolder[lang:${languageId}]`;
         default:
-            return `UNKNOWN(lang:${languageId})`;
+            return `UNKNOWN[lang:${languageId}]`;
         }
     }
     else
@@ -960,7 +962,7 @@ export const makeContextLabel = (pointer: SettingsContext) =>
 };
 export const makeContextMenuItem = (focus: SettingsFocus, value: string, description: string | undefined): CommandMenuItem =>
 ({
-    label: `${makeContextLabel(focus)}: ${value}`,
+    label: `$(symbol-namespace) ${makeContextLabel(makePointer(focus))}: ${value}`,
     description,
     command: async () => await editSettingItem(focus),
 });
@@ -970,11 +972,15 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     const contextMenuItemList: CommandMenuItem[] = [ ];
     const languageId = getLanguageId();
     const values = inspectConfiguration
-    ({
-        configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-        overrideInLanguage: true,
-        id: entry.id
-    });
+    (
+        makePointer
+        ({
+            context,
+            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+            overrideInLanguage: true,
+            entry
+        })
+    );
     const workspaceOverridable = 0 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
         (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope));
     const workspaceFolderOverridable = 1 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
@@ -1143,33 +1149,37 @@ export const makeSettingLabel = (id: string) =>　id
     .replace(/\./mg, ": ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/(^|\s)([a-z])/g,(_s, m1, m2) => `${m1}${m2.toUpperCase()}`);
-export const makeConfigurationScope =
-(
-    context:
-    {
-        configurationTarget: vscode.ConfigurationTarget,
-        overrideInLanguage: boolean,
-    }
-) =>
+export const makeConfigurationScopeUri = (configurationTarget: vscode.ConfigurationTarget): vscode.Uri | undefined =>
 {
     const activeDocumentUri = vscode.window.activeTextEditor?.document.uri;
-    if (activeDocumentUri && context.overrideInLanguage)
-    {
-        return activeDocumentUri;
-    }
-    switch(context.configurationTarget)
+    switch(configurationTarget)
     {
     case vscode.ConfigurationTarget.Global:
         return undefined;
     case vscode.ConfigurationTarget.Workspace:
         return vscode.workspace.workspaceFile ??
-            vscode.workspace.workspaceFolders?.[0];
+            vscode.workspace.workspaceFolders?.[0]?.uri;
     case vscode.ConfigurationTarget.WorkspaceFolder:
         return activeDocumentUri ?
-            vscode.workspace.getWorkspaceFolder(activeDocumentUri):
-            vscode.workspace.workspaceFolders?.[0];
+            vscode.workspace.getWorkspaceFolder(activeDocumentUri)?.uri:
+            vscode.workspace.workspaceFolders?.[0]?.uri;
     }
     return undefined;
+};
+export const makeConfigurationScope = (context: SettingsContext): vscode.ConfigurationScope | null | undefined =>
+{
+    if (context.overrideInLanguage)
+    {
+        const languageId = getLanguageId();
+        if (languageId)
+        {
+            return {
+                uri: makeConfigurationScopeUri(context.configurationTarget),
+                languageId: languageId,
+            };
+        }
+    }
+    return makeConfigurationScopeUri(context.configurationTarget);
 };
 export const getLanguageId = () => vscode.window.activeTextEditor?.document.languageId;
 export const makeDisplayType = (entry: SettingsEntry) =>
@@ -1234,11 +1244,15 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
                 (
                     entry,
                     getConfiguration
-                    ({
-                        configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                        overrideInLanguage: true,
-                        id: entry.id,
-                    })
+                    (
+                        makePointer
+                        ({
+                            context,
+                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                            overrideInLanguage: true,
+                            entry,
+                        })
+                    )
                 ),
                 detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
                 command: async () => await selectContext(context, await resolveReference(context, entry)),
