@@ -20,17 +20,39 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:blitz.editSettings"
+        "onCommand:blitz.editSetting"
     ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [
             {
-                "command": "blitz.editSettings",
-                "title": "Edit Settings",
+                "command": "blitz.editSetting",
+                "title": "Edit Setting",
+                "category": "Blitz"
+            },
+            {
+                "command": "blitz.undoSetting",
+                "title": "Undo Setting",
+                "category": "Blitz"
+            },
+            {
+                "command": "blitz.redoSetting",
+                "title": "Redo Setting",
                 "category": "Blitz"
             }
-        ]
+        ],
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "blitz.undoSetting",
+                    "when": "isUndosableBlitz"
+                },
+                {
+                    "command": "blitz.redoSetting",
+                    "when": "isRedosableBlitz"
+                }
+            ]
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

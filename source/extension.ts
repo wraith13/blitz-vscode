@@ -396,6 +396,7 @@ export const setConfiguration = async (entry: UndoEntry) =>
 {
     redoBuffer.splice(0, redoBuffer.length);
     undoBuffer.push(entry);
+    await onDidUpdateUndoBuffer();
     await setConfigurationRaw(entry.pointer, entry.newValue);
 };
 export const UndoConfiguration = async () =>
@@ -405,6 +406,7 @@ export const UndoConfiguration = async () =>
     {
         redoBuffer.push(entry);
         await setConfigurationRaw(entry.pointer, entry.oldValue);
+        await onDidUpdateUndoBuffer();
     }
 };
 export const RedoConfiguration = async () =>
@@ -414,7 +416,23 @@ export const RedoConfiguration = async () =>
     {
         undoBuffer.push(entry);
         await setConfigurationRaw(entry.pointer, entry.newValue);
+        await onDidUpdateUndoBuffer();
     }
+};
+export const onDidUpdateUndoBuffer = async () =>
+{
+    await vscode.commands.executeCommand
+    (
+        'setContext',
+        'isUndosableBlitz',
+        0 < undoBuffer.length
+    );
+    await vscode.commands.executeCommand
+    (
+        'setContext',
+        'isRedosableBlitz',
+        0 < redoBuffer.length
+    );
 };
 export const getProperties = (entry: SettingsEntry) =>
 {
@@ -1268,8 +1286,18 @@ export const activate = (context: vscode.ExtensionContext) => context.subscripti
 (
     vscode.commands.registerCommand
     (
-        'blitz.editSettings',
+        'blitz.editSetting',
         async () => editSettings(new CommandContext()),
+    ),
+    vscode.commands.registerCommand
+    (
+        'blitz.undoSetting',
+        async () => await UndoConfiguration(),
+    ),
+    vscode.commands.registerCommand
+    (
+        'blitz.redoSetting',
+        async () => await RedoConfiguration(),
     )
 );
 export const deactivate = ( ) => { };
