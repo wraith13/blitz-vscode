@@ -280,7 +280,12 @@ export const makeConfigurationKey = (id: string) => id.replace(/^(.*)(\.)([^.]*)
 export const aggregateSettings = async (context: CommandContext) =>
 {
     const vscodeSettings = await getVscodeSettings(context);
-    return Object.keys(vscodeSettings.properties)
+    const keys = Object.keys(vscodeSettings.properties);
+    const recentlies = getRecentlies();
+    const ids = recentlies
+        .filter(i => 0 <= keys.indexOf(i))
+        .concat(keys.filter(i => recentlies.indexOf(i) < 0));
+    return ids
         .map
         (
             id => Object.assign
@@ -380,6 +385,20 @@ interface UndoEntry
     newValue: unknown;
     oldValue: unknown;
 };
+const recentliesStrageId = `wraith13.blitz.recentlies`;
+const getRecentlies = () => extensionContext.globalState.get<string[]>(recentliesStrageId) || [];
+const setRecentlies = async (id: string) =>
+{
+    const recentlies = getRecentlies();
+    const oldIndex = recentlies.indexOf(id);
+    if (0 <= oldIndex)
+    {
+        recentlies.splice(oldIndex, 1);
+    }
+    recentlies.splice(0, 0, id);
+    recentlies.splice(128);
+    await extensionContext.globalState.update(recentliesStrageId, recentlies);
+};
 const undoBuffer: UndoEntry[] = [];
 const redoBuffer: UndoEntry[] = [];
 const makeUndoEntry =
@@ -398,6 +417,7 @@ export const setConfiguration = async (entry: UndoEntry) =>
     undoBuffer.push(entry);
     await onDidUpdateUndoBuffer();
     await setConfigurationRaw(entry.pointer, entry.newValue);
+    await setRecentlies(entry.pointer.id);
 };
 export const UndoConfiguration = async () =>
 {
@@ -1282,22 +1302,27 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
         matchOnDescription: true,
     }
 );
-export const activate = (context: vscode.ExtensionContext) => context.subscriptions.push
-(
-    vscode.commands.registerCommand
+let extensionContext: vscode.ExtensionContext;
+export const activate = (context: vscode.ExtensionContext) =>
+{
+    extensionContext = context;
+    context.subscriptions.push
     (
-        'blitz.editSetting',
-        async () => editSettings(new CommandContext()),
-    ),
-    vscode.commands.registerCommand
-    (
-        'blitz.undoSetting',
-        async () => await UndoConfiguration(),
-    ),
-    vscode.commands.registerCommand
-    (
-        'blitz.redoSetting',
-        async () => await RedoConfiguration(),
-    )
-);
+        vscode.commands.registerCommand
+        (
+            'blitz.editSetting',
+            async () => editSettings(new CommandContext()),
+        ),
+        vscode.commands.registerCommand
+        (
+            'blitz.undoSetting',
+            async () => await UndoConfiguration(),
+        ),
+        vscode.commands.registerCommand
+        (
+            'blitz.redoSetting',
+            async () => await RedoConfiguration(),
+        )
+    );
+}
 export const deactivate = ( ) => { };
