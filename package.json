@@ -20,9 +20,9 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:blitz.editSetting"
+        "*"
     ],
-    "main": "./out/extension.js",
+    "main": "./out/source/extension.js",
     "contributes": {
         "commands": [
             {
@@ -52,7 +52,29 @@
                     "when": "isRedosableBlitz"
                 }
             ]
-        }
+        },
+        "configuration": [
+            {
+                "title": "Blitz",
+                "properties": {
+                    "blitz.statusBar.Label": {
+                        "type": "string",
+                        "default": "$(settings-gear)",
+                        "description": "%blitz.statusBar.Label.description%"
+                    },
+                    "blitz.statusBar.Alignment": {
+                        "type": "string",
+                        "default": "left",
+                        "enum": [
+                            "none",
+                            "left",
+                            "right"
+                        ],
+                        "description": "%blitz.statusBar.Alignment.description%"
+                    }
+                }
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as Config from "./lib/config";
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
 // copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110
@@ -1302,6 +1303,60 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
         matchOnDescription: true,
     }
 );
+
+const alignmentObject = Object.freeze
+(
+    {
+        "none": undefined,
+        "left": vscode.StatusBarAlignment.Left,
+        "right": vscode.StatusBarAlignment.Right,
+    }
+);
+export const statusBarAlignment = new Config.MapEntry("blitz.statusBar.Alignment", alignmentObject);
+export const statusBarLabel = new Config.Entry<string>("blitz.statusBar.Label");
+
+const createStatusBarItem =
+(
+    properties :
+    {
+        alignment ? : vscode.StatusBarAlignment,
+        text ? : string,
+        command ? : string,
+        tooltip ? : string
+    }
+)
+: vscode.StatusBarItem =>
+{
+    const result = vscode.window.createStatusBarItem(properties.alignment);
+    if (undefined !== properties.text)
+    {
+        result.text = properties.text;
+    }
+    if (undefined !== properties.command)
+    {
+        result.command = properties.command;
+    }
+    if (undefined !== properties.tooltip)
+    {
+        result.tooltip = properties.tooltip;
+    }
+    if (undefined !== properties.alignment)
+    {
+        result.show();
+    }
+    else
+    {
+        result.hide();
+    }
+    return result;
+};
+export const makeStatusBarItem = () => createStatusBarItem
+({
+    alignment: statusBarAlignment.get(""),
+    text: statusBarLabel.get(""),
+    command: `blitz.editSetting`,
+    tooltip: "Blitz: Edit Setting"
+});
 let extensionContext: vscode.ExtensionContext;
 export const activate = (context: vscode.ExtensionContext) =>
 {
@@ -1322,7 +1377,8 @@ export const activate = (context: vscode.ExtensionContext) =>
         (
             'blitz.redoSetting',
             async () => await RedoConfiguration(),
-        )
+        ),
+        makeStatusBarItem()
     );
-}
+};
 export const deactivate = ( ) => { };

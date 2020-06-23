@@ -27,7 +27,7 @@
         "skipLibCheck": false,
         "pretty": false,
         "noEmitOnError": true,
-        "rootDir": "source",
+        "rootDir": ".",
         "strict": true,
         "resolveJsonModule": true,
         "esModuleInterop": true
