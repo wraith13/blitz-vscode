@@ -697,9 +697,14 @@ async (
         rollback();
     }
 };
-export const toStringOfDefault = (value: any, defaultValue: any) => undefined === value ?
-    defaultValue:
-    JSON.stringify(value);
+export const toStringOfDefault = (value: any, defaultValue: any) =>
+    undefined === value ?
+        defaultValue:
+        (
+            "string" === typeof value ?
+                value:
+                JSON.stringify(value)
+        );
 export const toStringOrUndefined = (value: any) => toStringOfDefault(value, undefined);
 export const toStringForce = (value: any) => toStringOfDefault(value, "undefined" );
 export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValue: any): Promise<CommandMenuItem[]> =>
@@ -1339,36 +1344,37 @@ const createStatusBarItem =
     {
         result.tooltip = properties.tooltip;
     }
-    if (undefined !== properties.alignment)
-    {
-        result.show();
-    }
-    else
-    {
-        result.hide();
-    }
     return result;
 };
-var statusBarItem: vscode.StatusBarItem;
-export const makeStatusBarItem = () => statusBarItem = createStatusBarItem
+export const makeStatusBarItem = (alignment: vscode.StatusBarAlignment) => createStatusBarItem
 ({
-    alignment: statusBarAlignment.get(""),
-    text: statusBarLabel.get(""),
+    alignment,
+    //text: statusBarLabel.get(""),
     command: `blitz.editSetting`,
-    tooltip: "Blitz: Edit Setting"
+    tooltip: `Blitz: Edit Setting`
 });
+const leftStatusBarItem = makeStatusBarItem(vscode.StatusBarAlignment.Left);
+const rightStatusBarItem = makeStatusBarItem(vscode.StatusBarAlignment.Right);
 export const updateStatusBarItem = () =>
-{
-    statusBarItem.text = statusBarLabel.get("");
-    if (undefined !== statusBarAlignment.get(""))
-    {
-        statusBarItem.show();
-    }
-    else
-    {
-        statusBarItem.hide();
-    }
-}
+    [
+        leftStatusBarItem,
+        rightStatusBarItem,
+    ]
+    .forEach
+    (
+        item =>
+        {
+            if (item.alignment === statusBarAlignment.get(""))
+            {
+                item.text = statusBarLabel.get("");
+                item.show();
+            }
+            else
+            {
+                item.hide();
+            }
+        }
+    );
 let extensionContext: vscode.ExtensionContext;
 export const activate = (context: vscode.ExtensionContext) =>
 {
@@ -1390,7 +1396,27 @@ export const activate = (context: vscode.ExtensionContext) =>
             'blitz.redoSetting',
             async () => await RedoConfiguration(),
         ),
-        makeStatusBarItem()
+        leftStatusBarItem,
+        rightStatusBarItem,
+        vscode.workspace.onDidChangeConfiguration
+        (
+            event =>
+            {
+                if
+                (
+                    event.affectsConfiguration("blitz")
+                )
+                {
+                    [
+                        statusBarAlignment,
+                        statusBarLabel
+                    ]
+                    .forEach(i => i.clear());
+                    updateStatusBarItem();
+                }
+            }
+        ),
     );
+    updateStatusBarItem();
 };
 export const deactivate = ( ) => { };
