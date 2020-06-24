@@ -1314,7 +1314,6 @@ const alignmentObject = Object.freeze
 );
 export const statusBarAlignment = new Config.MapEntry("blitz.statusBar.Alignment", alignmentObject);
 export const statusBarLabel = new Config.Entry<string>("blitz.statusBar.Label");
-
 const createStatusBarItem =
 (
     properties :
@@ -1350,13 +1349,26 @@ const createStatusBarItem =
     }
     return result;
 };
-export const makeStatusBarItem = () => createStatusBarItem
+var statusBarItem: vscode.StatusBarItem;
+export const makeStatusBarItem = () => statusBarItem = createStatusBarItem
 ({
     alignment: statusBarAlignment.get(""),
     text: statusBarLabel.get(""),
     command: `blitz.editSetting`,
     tooltip: "Blitz: Edit Setting"
 });
+export const updateStatusBarItem = () =>
+{
+    statusBarItem.text = statusBarLabel.get("");
+    if (undefined !== statusBarAlignment.get(""))
+    {
+        statusBarItem.show();
+    }
+    else
+    {
+        statusBarItem.hide();
+    }
+}
 let extensionContext: vscode.ExtensionContext;
 export const activate = (context: vscode.ExtensionContext) =>
 {
