@@ -380,6 +380,55 @@ async (
     pointer.configurationTarget,
     pointer.overrideInLanguage
 );
+const configurationQueue:
+{
+    pointer: SettingsPointer,
+    value: unknown,
+    resolve: () => void,
+    rejct: () => void,
+}[]  = [];
+export const timeout = (wait: number) => new Promise((resolve) => setTimeout(resolve, wait));
+export const setConfigurationQueue =
+async (
+    pointer: SettingsPointer,
+    value: unknown
+) => new Promise
+(
+    async (resolve, rejct) =>
+    {
+        if (0 < configurationQueue.length)
+        {
+            const removeList = configurationQueue
+                .filter(i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
+                .map((_i, ix) => ix);
+            removeList.forEach(i => configurationQueue[i].rejct());
+            removeList.reverse().forEach(i => configurationQueue.splice(i, 1));
+            configurationQueue.push({ pointer, value, resolve, rejct });
+        }
+        else
+        {
+            configurationQueue.push({ pointer, value, resolve, rejct });
+            while(true)
+            {
+                await timeout(1000);
+                const i = configurationQueue.splice(0, 1)[0];
+                const isLast = configurationQueue.length <= 0; // このタイミングでチェックしておかないとここのループが多重に動作する事になる。
+                try
+                {
+                    await setConfigurationRaw(i.pointer, i.value);
+                }
+                finally
+                {
+                    i.resolve();
+                }
+                if (isLast)
+                {
+                    break;
+                }
+            }
+        }
+    }
+);
 interface UndoEntry
 {
     pointer: SettingsPointer;
@@ -417,7 +466,7 @@ export const setConfiguration = async (entry: UndoEntry) =>
     redoBuffer.splice(0, redoBuffer.length);
     undoBuffer.push(entry);
     await onDidUpdateUndoBuffer();
-    await setConfigurationRaw(entry.pointer, entry.newValue);
+    await setConfigurationQueue(entry.pointer, entry.newValue);
     await setRecentlies(entry.pointer.id);
 };
 export const UndoConfiguration = async () =>
@@ -426,7 +475,7 @@ export const UndoConfiguration = async () =>
     if (undefined !== entry)
     {
         redoBuffer.push(entry);
-        await setConfigurationRaw(entry.pointer, entry.oldValue);
+        await setConfigurationQueue(entry.pointer, entry.oldValue);
         await onDidUpdateUndoBuffer();
     }
 };
@@ -436,7 +485,7 @@ export const RedoConfiguration = async () =>
     if (undefined !== entry)
     {
         undoBuffer.push(entry);
-        await setConfigurationRaw(entry.pointer, entry.newValue);
+        await setConfigurationQueue(entry.pointer, entry.newValue);
         await onDidUpdateUndoBuffer();
     }
 };
@@ -476,7 +525,7 @@ export const makeSettingValueItem =
     label: `$(tag) ${JSON.stringify(entry.newValue)}`,
     description,
     detail,
-    preview: async () => await setConfigurationRaw(entry.pointer, entry.newValue),
+    preview: async () => await setConfigurationQueue(entry.pointer, entry.newValue),
     command: async () => await setConfiguration(entry),
 });
 export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
@@ -682,7 +731,7 @@ async (
             const result = validateInput(input);
             if (undefined === result || null === result)
             {
-                await setConfigurationRaw(pointer, parser(input));
+                await setConfigurationQueue(pointer, parser(input));
             }
             return result;
         }
@@ -886,7 +935,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                 result.push
                 ({
                     label: `$(add) Add null item`,
-                    preview: async () => await setConfigurationRaw(pointer, newValue),
+                    preview: async () => await setConfigurationQueue(pointer, newValue),
                     command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                 }); }
             if ( ! entry.items?.type || hasType(entry.items, "string"))
@@ -912,7 +961,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                     result.push
                     ({
                         label: `$(remove) Remove "${toStringOrUndefined(item)}"`,
-                        preview: async () => await setConfigurationRaw(pointer, newValue),
+                        preview: async () => await setConfigurationQueue(pointer, newValue),
                         command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                     });
                 }
@@ -1157,7 +1206,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     }
 };
 export const makeRollBackMethod = (pointer: SettingsPointer, value: any) =>
-    async () => await setConfigurationRaw(pointer, value);
+    async () => await setConfigurationQueue(pointer, value);
 export const editSettingItem =
 async (
     focus: SettingsFocus,
@@ -1173,7 +1222,7 @@ async (
         makeShowDescriptionMenu(focus),
         {
             label: "$(discard) Reset",
-            preview: async () => await setConfigurationRaw(pointer, undefined),
+            preview: async () => await setConfigurationQueue(pointer, undefined),
             command: async () => await setConfiguration({ pointer, newValue: undefined, oldValue, }),
         }
     ]
