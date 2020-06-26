@@ -380,14 +380,15 @@ async (
     pointer.configurationTarget,
     pointer.overrideInLanguage
 );
-const configurationQueue:
+interface ConfigurationQueueEntry
 {
     pointer: SettingsPointer,
     value: unknown,
     resolve: () => void,
     rejct: () => void,
     timer: NodeJS.Timeout,
-}[]  = [];
+};
+const configurationQueue: ConfigurationQueueEntry[]  = [];
 export const timeout = (wait: number) => new Promise((resolve) => setTimeout(resolve, wait));
 export const setConfigurationQueue =
 async (
@@ -398,9 +399,13 @@ async (
 (
     async (resolve, rejct) =>
     {
-        configurationQueue
-            .filter(i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
-            .map((_i, ix) => ix).reverse().map(ix => configurationQueue.splice(ix, 1)[0])
+        const spliceConfigurationQueue = (where: (i:ConfigurationQueueEntry) => boolean) =>
+            configurationQueue
+                .map((i, ix) => where(i) ? ix: -1)
+                .filter(ix => 0 <= ix)
+                .reverse()
+                .map(ix => configurationQueue.splice(ix, 1)[0]);
+        spliceConfigurationQueue(i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
             .forEach
             (
                 i =>
@@ -409,29 +414,26 @@ async (
                     i.rejct();
                 }
             );
-        const timer = setTimeout
+        const timer: NodeJS.Timeout = setTimeout
         (
-            async () =>
-            {
-                configurationQueue.forEach
-                (
-                    (i, ix) =>
-                    {
-                        if (timer === i.timer)
+            async () => await Promise.all
+            (
+                spliceConfigurationQueue(i => timer === i.timer)
+                    .map
+                    (
+                        async (i) =>
                         {
-                            configurationQueue.splice(ix, 1);
+                            try
+                            {
+                                await setConfigurationRaw(i.pointer, i.value);
+                            }
+                            finally
+                            {
+                                resolve();
+                            }
                         }
-                    }
-                );
-                try
-                {
-                    await setConfigurationRaw(pointer, value);
-                }
-                finally
-                {
-                    resolve();
-                }
-            },
+                    )
+            ),
             wait
         );
         configurationQueue.push
@@ -478,11 +480,14 @@ const makeUndoEntry =
 ) => ({ pointer, oldValue, newValue, });
 export const setConfiguration = async (entry: UndoEntry) =>
 {
-    redoBuffer.splice(0, redoBuffer.length);
-    undoBuffer.push(entry);
-    await onDidUpdateUndoBuffer();
+    if (JSON.stringify(entry.oldValue) !== JSON.stringify(entry.newValue))
+    {
+        redoBuffer.splice(0, redoBuffer.length);
+        undoBuffer.push(entry);
+        await onDidUpdateUndoBuffer();
+        await setRecentlies(entry.pointer.id);
+    }
     await setConfigurationQueue(entry.pointer, entry.newValue);
-    await setRecentlies(entry.pointer.id);
 };
 export const UndoConfiguration = async () =>
 {
