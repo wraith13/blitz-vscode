@@ -386,47 +386,62 @@ const configurationQueue:
     value: unknown,
     resolve: () => void,
     rejct: () => void,
+    timer: NodeJS.Timeout,
 }[]  = [];
 export const timeout = (wait: number) => new Promise((resolve) => setTimeout(resolve, wait));
 export const setConfigurationQueue =
 async (
     pointer: SettingsPointer,
-    value: unknown
+    value: unknown,
+    wait = 500
 ) => new Promise
 (
     async (resolve, rejct) =>
     {
-        if (0 < configurationQueue.length)
-        {
-            const removeList = configurationQueue
-                .filter(i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
-                .map((_i, ix) => ix);
-            removeList.forEach(i => configurationQueue[i].rejct());
-            removeList.reverse().forEach(i => configurationQueue.splice(i, 1));
-            configurationQueue.push({ pointer, value, resolve, rejct });
-        }
-        else
-        {
-            configurationQueue.push({ pointer, value, resolve, rejct });
-            while(true)
+        configurationQueue
+            .filter(i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
+            .map((_i, ix) => ix).reverse().map(ix => configurationQueue.splice(ix, 1)[0])
+            .forEach
+            (
+                i =>
+                {
+                    clearTimeout(i.timer);
+                    i.rejct();
+                }
+            );
+        const timer = setTimeout
+        (
+            async () =>
             {
-                await timeout(1000);
-                const i = configurationQueue.splice(0, 1)[0];
-                const isLast = configurationQueue.length <= 0; // このタイミングでチェックしておかないとここのループが多重に動作する事になる。
+                configurationQueue.forEach
+                (
+                    (i, ix) =>
+                    {
+                        if (timer === i.timer)
+                        {
+                            configurationQueue.splice(ix, 1);
+                        }
+                    }
+                );
                 try
                 {
-                    await setConfigurationRaw(i.pointer, i.value);
+                    await setConfigurationRaw(pointer, value);
                 }
                 finally
                 {
-                    i.resolve();
+                    resolve();
                 }
-                if (isLast)
-                {
-                    break;
-                }
-            }
-        }
+            },
+            wait
+        );
+        configurationQueue.push
+        ({
+            pointer,
+            value,
+            resolve,
+            rejct,
+            timer,
+        });
     }
 );
 interface UndoEntry
