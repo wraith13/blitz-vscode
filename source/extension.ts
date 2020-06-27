@@ -282,7 +282,7 @@ export const aggregateSettings = async (context: CommandContext) =>
 {
     const vscodeSettings = await getVscodeSettings(context);
     const keys = Object.keys(vscodeSettings.properties);
-    const recentlies = getRecentlies();
+    const recentlies = getRecentlyEntries();
     const ids = recentlies
         .filter(i => 0 <= keys.indexOf(i))
         .concat(keys.filter(i => recentlies.indexOf(i) < 0));
@@ -427,10 +427,11 @@ async (
                             {
                                 await setConfigurationRaw(i.pointer, i.value);
                             }
-                            finally
+                            catch
                             {
-                                resolve();
+                                i.rejct();
                             }
+                            i.resolve();
                         }
                     )
             ),
@@ -452,19 +453,54 @@ interface UndoEntry
     newValue: unknown;
     oldValue: unknown;
 };
-const recentliesStrageId = `wraith13.blitz.recentlies`;
-const getRecentlies = () => extensionContext.globalState.get<string[]>(recentliesStrageId) || [];
-const setRecentlies = async (id: string) =>
+interface RecentlyValueEntry
 {
-    const recentlies = getRecentlies();
-    const oldIndex = recentlies.indexOf(id);
+    stamp: string;
+    value: string;
+};
+const recentlyEntriesStrageId = `wraith13.blitz.recently.entries`;
+const recentlyValuesStrageId = `wraith13.blitz.recently.values`;
+const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) || [];
+const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify(pointer.id);
+const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:RecentlyValueEntry[]}>(recentlyValuesStrageId) || { };
+const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] || [];
+const setRecentlies = async (entry: UndoEntry) =>
+{
+    const recentlyEntries = getRecentlyEntries();
+    const oldIndex = recentlyEntries.indexOf(entry.pointer.id);
     if (0 <= oldIndex)
     {
-        recentlies.splice(oldIndex, 1);
+        recentlyEntries.splice(oldIndex, 1);
     }
-    recentlies.splice(0, 0, id);
-    recentlies.splice(128);
-    await extensionContext.globalState.update(recentliesStrageId, recentlies);
+    recentlyEntries.splice(0, 0, entry.pointer.id);
+    recentlyEntries.splice(128);
+    await extensionContext.globalState.update(recentlyEntriesStrageId, recentlyEntries);
+
+    const recentlyValues = getRecentlyValuesRoot();
+    const values = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
+    if
+    (
+        undefined !== entry.newValue &&
+        null !== entry.newValue &&
+        "boolean" !== typeof entry.newValue
+    )
+    {
+        const value = JSON.stringify(entry.newValue);
+        values
+            .map((i, ix) => i.value === value ? -1: ix)
+            .filter(ix => 0 <= ix)
+            .reverse()
+            .forEach(ix => values.splice(ix, 1));
+        values.splice(0, 0, { stamp:new Date().toLocaleString(), value, });
+        values.splice(8); // enum の場合、表示側で削る。( 削らないと全部の選択肢が recently 表示というアホな事になる。 )
+    }
+    recentlyValues[makePointerStrageId(entry.pointer)] = values;
+    await extensionContext.globalState.update(recentlyValuesStrageId, recentlyValues);
+};
+export const clearRecentlies = async () =>
+{
+    await extensionContext.globalState.update(recentlyEntriesStrageId, undefined);
+    await extensionContext.globalState.update(recentlyValuesStrageId, undefined);
 };
 const undoBuffer: UndoEntry[] = [];
 const redoBuffer: UndoEntry[] = [];
@@ -485,7 +521,7 @@ export const setConfiguration = async (entry: UndoEntry) =>
         redoBuffer.splice(0, redoBuffer.length);
         undoBuffer.push(entry);
         await onDidUpdateUndoBuffer();
-        await setRecentlies(entry.pointer.id);
+        await setRecentlies(entry);
     }
     await setConfigurationQueue(entry.pointer, entry.newValue);
 };
@@ -561,6 +597,10 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
             if (undefined !== description)
             {
                 item.description.push(description);
+                if (2 <= item.description.length)
+                {
+                    item.description = item.description.filter(i => !i.startsWith("recently"));
+                }
             }
             if (undefined !== detail)
             {
@@ -609,6 +649,12 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
     }
     register(getDefaultValue(entry), "default");
     register(getConfiguration(pointer), "current");
+    if (0 <= (<PrimaryConfigurationType[]>[ "string", "integer", "number", "array", "object" ]).filter(i => 0 <= types.indexOf(i)).length)
+    {
+        getRecentlyValues(pointer)
+            .filter((_i, ix) => undefined === entry.enum || ix +1 <= entry.enum.length /3.0)
+            .forEach(i => register(JSON.parse(i.value), `recently(${i.stamp})`));
+    }
     const typeIndexOf = (value: any) =>
     {
         switch(typeof value)
@@ -1464,6 +1510,11 @@ export const activate = (context: vscode.ExtensionContext) =>
         (
             'blitz.redoSetting',
             async () => await RedoConfiguration(),
+        ),
+        vscode.commands.registerCommand
+        (
+            'blitz.clearHistory',
+            async () => await clearRecentlies(),
         ),
         leftStatusBarItem,
         rightStatusBarItem,
