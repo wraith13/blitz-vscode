@@ -39,6 +39,11 @@
                 "command": "blitz.redoSetting",
                 "title": "Redo Setting",
                 "category": "Blitz"
+            },
+            {
+                "command": "blitz.clearHistory",
+                "title": "Clear Setting History",
+                "category": "Blitz"
             }
         ],
         "menus": {

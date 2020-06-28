@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as Config from "./lib/config";
-const localeTableKey = <string>JSON.parse(<string>process.env.VSCODE_NLS_CONFIG).locale;
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
 // copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110
@@ -454,16 +453,11 @@ interface UndoEntry
     newValue: unknown;
     oldValue: unknown;
 };
-interface RecentlyValueEntry
-{
-    stamp: string;
-    value: string;
-};
 const recentlyEntriesStrageId = `wraith13.blitz.recently.entries`;
 const recentlyValuesStrageId = `wraith13.blitz.recently.values`;
 const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) || [];
 const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify(pointer.id);
-const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:RecentlyValueEntry[]}>(recentlyValuesStrageId) || { };
+const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyValuesStrageId) || { };
 const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] || [];
 const setRecentlyEntries = async (entry: UndoEntry) =>
 {
@@ -483,11 +477,11 @@ const setRecentlyValues = async (entry: UndoEntry) =>
     const values = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
     const value = JSON.stringify(entry.newValue);
     values
-        .map((i, ix) => i.value === value ? ix: -1)
+        .map((i, ix) => i === value ? ix: -1)
         .filter(ix => 0 <= ix)
         .reverse()
         .forEach(ix => values.splice(ix, 1));
-    values.splice(0, 0, { stamp:new Date().toLocaleString(localeTableKey), value, });
+    values.splice(0, 0, value);
     values.splice(8); // enum の場合、表示側で削る。( 削らないと全部の選択肢が recently 表示というアホな事になる。 )
     recentlyValues[makePointerStrageId(entry.pointer)] = values;
     await extensionContext.globalState.update(recentlyValuesStrageId, recentlyValues);
@@ -653,7 +647,7 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
     {
         getRecentlyValues(pointer)
             .filter((_i, ix) => undefined === entry.enum || ix +1 <= entry.enum.length /3.0)
-            .forEach(i => register(JSON.parse(i.value), `recently(${i.stamp})`));
+            .forEach(i => register(JSON.parse(i), `recently`));
     }
     const typeIndexOf = (value: any) =>
     {
@@ -821,7 +815,7 @@ export const toStringOfDefault = (value: any, defaultValue: any) =>
                 JSON.stringify(value)
         );
 export const toStringOrUndefined = (value: any) => toStringOfDefault(value, undefined);
-export const toStringForce = (value: any) => toStringOfDefault(value, "undefined" );
+export const toStringForce = (value: any) => toStringOfDefault(value, "undefined");
 export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValue: any): Promise<CommandMenuItem[]> =>
 {
     const entry = focus.entry;
