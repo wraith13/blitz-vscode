@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as Config from "./lib/config";
+const localeTableKey = <string>JSON.parse(<string>process.env.VSCODE_NLS_CONFIG).locale;
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
 // copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110
@@ -204,7 +205,7 @@ export const showQuickPick = async <T extends CommandMenuItem>
                 onDidSelectItem: async (item: T) =>
                 {
                     await apply(options?.strictRollback);
-                    await apply(item.preview) || await apply(options?.rollback);
+                    await apply(item?.preview) || await apply(options?.rollback);
                 }
             },
             options ?? { },
@@ -464,7 +465,7 @@ const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(rece
 const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify(pointer.id);
 const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:RecentlyValueEntry[]}>(recentlyValuesStrageId) || { };
 const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] || [];
-const setRecentlies = async (entry: UndoEntry) =>
+const setRecentlyEntries = async (entry: UndoEntry) =>
 {
     const recentlyEntries = getRecentlyEntries();
     const oldIndex = recentlyEntries.indexOf(entry.pointer.id);
@@ -475,27 +476,26 @@ const setRecentlies = async (entry: UndoEntry) =>
     recentlyEntries.splice(0, 0, entry.pointer.id);
     recentlyEntries.splice(128);
     await extensionContext.globalState.update(recentlyEntriesStrageId, recentlyEntries);
-
+};
+const setRecentlyValues = async (entry: UndoEntry) =>
+{
     const recentlyValues = getRecentlyValuesRoot();
     const values = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
-    if
-    (
-        undefined !== entry.newValue &&
-        null !== entry.newValue &&
-        "boolean" !== typeof entry.newValue
-    )
-    {
-        const value = JSON.stringify(entry.newValue);
-        values
-            .map((i, ix) => i.value === value ? -1: ix)
-            .filter(ix => 0 <= ix)
-            .reverse()
-            .forEach(ix => values.splice(ix, 1));
-        values.splice(0, 0, { stamp:new Date().toLocaleString(), value, });
-        values.splice(8); // enum の場合、表示側で削る。( 削らないと全部の選択肢が recently 表示というアホな事になる。 )
-    }
+    const value = JSON.stringify(entry.newValue);
+    values
+        .map((i, ix) => i.value === value ? ix: -1)
+        .filter(ix => 0 <= ix)
+        .reverse()
+        .forEach(ix => values.splice(ix, 1));
+    values.splice(0, 0, { stamp:new Date().toLocaleString(localeTableKey), value, });
+    values.splice(8); // enum の場合、表示側で削る。( 削らないと全部の選択肢が recently 表示というアホな事になる。 )
     recentlyValues[makePointerStrageId(entry.pointer)] = values;
     await extensionContext.globalState.update(recentlyValuesStrageId, recentlyValues);
+};
+const setRecentlies = async (entry: UndoEntry) =>
+{
+    await setRecentlyEntries(entry);
+    await setRecentlyValues(entry);
 };
 export const clearRecentlies = async () =>
 {
@@ -702,22 +702,22 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
                 }
                 if ("number" === typeof a.value && "number" === typeof b.value)
                 {
-                    if (a < b)
+                    if (a.value < b.value)
                     {
                         return -1;
                     }
-                    if (a > b)
+                    if (a.value > b.value)
                     {
                         return 1;
                     }
                 }
                 if ("string" === typeof a.value && "string" === typeof b.value)
                 {
-                    if (a < b)
+                    if (a.value < b.value)
                     {
                         return -1;
                     }
-                    if (a > b)
+                    if (a.value > b.value)
                     {
                         return 1;
                     }
