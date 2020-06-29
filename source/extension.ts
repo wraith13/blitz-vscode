@@ -91,13 +91,38 @@ const makePointer = (focus: SettingsFocus): SettingsPointer =>
     configurationTarget: focus.configurationTarget,
     overrideInLanguage: focus.overrideInLanguage,
     id: focus.entry.id,
+    detailId: [],
     scope: makeConfigurationScope(focus),
 });
 interface SettingsPointer extends SettingsContext
 {
     id: string;
+    detailId: string[];
     scope: vscode.ConfigurationScope | null | undefined;
 }
+const setDetailValue = (root: any, detailId: string[], value: unknown) =>
+{
+    if (0 < detailId.length)
+    {
+        let current = root;
+        for(let i = 0; 0 < detailId.length -1; ++i)
+        {
+            const key = detailId[i];
+            if (undefined === current[key])
+            {
+                current[key] = { };
+            }
+            current = current[key];
+        }
+        current[detailId[detailId.length -1]] = value;
+        return root;
+    }
+    else
+    {
+        return value;
+    }
+};
+const getDetailValue = (root: any, detailId: string[]) => detailId.reduce((x, i) => x?.[i], root);
 const getSchema = async (context: CommandContext, uri: string, self?: any) =>
     undefined !== uri && 0 < uri.length ?
     (
@@ -376,7 +401,9 @@ async (
 .update
 (
     makeConfigurationKey(pointer.id),
-    value,
+    0 < pointer.detailId.length ?
+        setDetailValue(getConfiguration(pointer), pointer.detailId, value):
+        value,
     pointer.configurationTarget,
     pointer.overrideInLanguage
 );
@@ -454,9 +481,12 @@ interface UndoEntry
     oldValue: unknown;
 };
 const recentlyEntriesStrageId = `wraith13.blitz.recently.entries`;
+const recentlyDetailsStrageId = `wraith13.blitz.recently.details`;
 const recentlyValuesStrageId = `wraith13.blitz.recently.values`;
 const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) || [];
 const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify(pointer.id);
+const getRecentlyDetailsRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyDetailsStrageId) || { };
+const getRecentlyDetails = (pointer: SettingsPointer) => getRecentlyDetailsRoot()[makePointerStrageId(pointer)] || [];
 const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyValuesStrageId) || { };
 const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] || [];
 const setRecentlyEntries = async (entry: UndoEntry) =>
@@ -471,17 +501,40 @@ const setRecentlyEntries = async (entry: UndoEntry) =>
     recentlyEntries.splice(128);
     await extensionContext.globalState.update(recentlyEntriesStrageId, recentlyEntries);
 };
+const setRecentlyDetails = async (entry: UndoEntry) =>
+{
+    if (0 < entry.pointer.detailId.length)
+    {
+        const recentlyValues = getRecentlyDetailsRoot();
+        const details = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
+        const json = JSON.stringify(entry.pointer.detailId);
+        details
+            .map((i, ix) => i === json ? ix: -1)
+            .filter(ix => 0 <= ix)
+            .reverse()
+            .forEach(ix => details.splice(ix, 1));
+        details.splice(0, 0, json);
+        details.splice(32);
+        recentlyValues[makePointerStrageId(entry.pointer)] = details;
+        await extensionContext.globalState.update(recentlyDetailsStrageId, recentlyValues);
+    }
+};
 const setRecentlyValues = async (entry: UndoEntry) =>
 {
     const recentlyValues = getRecentlyValuesRoot();
     const values = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
-    const value = JSON.stringify(entry.newValue);
-    values
-        .map((i, ix) => i === value ? ix: -1)
-        .filter(ix => 0 <= ix)
-        .reverse()
-        .forEach(ix => values.splice(ix, 1));
-    values.splice(0, 0, value);
+    const add = (value: unknown) =>
+    {
+        const json = JSON.stringify(value);
+        values
+            .map((i, ix) => i === value ? ix: -1)
+            .filter(ix => 0 <= ix)
+            .reverse()
+            .forEach(ix => values.splice(ix, 1));
+        values.splice(0, 0, json);
+    };
+    add(entry.oldValue); // blitz 以外で設定されてた値を拾う為
+    add(entry.newValue);
     values.splice(8); // enum の場合、表示側で削る。( 削らないと全部の選択肢が recently 表示というアホな事になる。 )
     recentlyValues[makePointerStrageId(entry.pointer)] = values;
     await extensionContext.globalState.update(recentlyValuesStrageId, recentlyValues);
@@ -489,6 +542,7 @@ const setRecentlyValues = async (entry: UndoEntry) =>
 const setRecentlies = async (entry: UndoEntry) =>
 {
     await setRecentlyEntries(entry);
+    await setRecentlyDetails(entry);
     await setRecentlyValues(entry);
 };
 export const clearRecentlies = async () =>
@@ -502,10 +556,14 @@ const makeUndoEntry =
 (
     pointer: SettingsPointer,
     newValue: unknown,
-    oldValue: unknown = getValueFromInspectResult
+    oldValue: unknown = getDetailValue
     (
-        pointer,
-        inspectConfiguration(pointer)
+        getValueFromInspectResult
+        (
+            pointer,
+            inspectConfiguration(pointer)
+        ),
+        pointer.detailId
     )
 ) => ({ pointer, oldValue, newValue, });
 export const setConfiguration = async (entry: UndoEntry) =>
@@ -997,7 +1055,8 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                     label: `$(add) Add null item`,
                     preview: async () => await setConfigurationQueue(pointer, newValue),
                     command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
-                }); }
+                });
+            }
             if ( ! entry.items?.type || hasType(entry.items, "string"))
             {
                 result.push
@@ -1271,10 +1330,14 @@ export const editSettingItem =
 async (
     focus: SettingsFocus,
     pointer =  makePointer(focus),
-    oldValue = getValueFromInspectResult
+    oldValue = getDetailValue
     (
-        focus,
-        inspectConfiguration(pointer)
+        getValueFromInspectResult
+        (
+            focus,
+            inspectConfiguration(pointer)
+        ),
+        pointer.detailId
     ),
 ) => await showQuickPick
 (
