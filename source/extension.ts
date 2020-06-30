@@ -417,6 +417,13 @@ interface ConfigurationQueueEntry
 };
 const configurationQueue: ConfigurationQueueEntry[]  = [];
 export const timeout = (wait: number) => new Promise((resolve) => setTimeout(resolve, wait));
+const filterIndex = <T>(list: T[], where: (i: T) => boolean) => list
+    .map((i, ix) => where(i) ? ix: -1)
+    .filter(ix => 0 <= ix);
+const spliceWhere = <T>(list: T[], where: (i: T) => boolean) => filterIndex(list, where)
+    .reverse()
+    .map(ix => list.splice(ix, 1)[0])
+    .reverse();
 export const setConfigurationQueue =
 async (
     pointer: SettingsPointer,
@@ -426,13 +433,7 @@ async (
 (
     async (resolve, rejct) =>
     {
-        const spliceConfigurationQueue = (where: (i:ConfigurationQueueEntry) => boolean) =>
-            configurationQueue
-                .map((i, ix) => where(i) ? ix: -1)
-                .filter(ix => 0 <= ix)
-                .reverse()
-                .map(ix => configurationQueue.splice(ix, 1)[0]);
-        spliceConfigurationQueue(i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
+        spliceWhere(configurationQueue, i => JSON.stringify(i.pointer) === JSON.stringify(pointer))
             .forEach
             (
                 i =>
@@ -445,7 +446,7 @@ async (
         (
             async () => await Promise.all
             (
-                spliceConfigurationQueue(i => timer === i.timer)
+                spliceWhere(configurationQueue, i => timer === i.timer)
                     .map
                     (
                         async (i) =>
@@ -508,11 +509,7 @@ const setRecentlyDetails = async (entry: UndoEntry) =>
         const recentlyValues = getRecentlyDetailsRoot();
         const details = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
         const json = JSON.stringify(entry.pointer.detailId);
-        details
-            .map((i, ix) => i === json ? ix: -1)
-            .filter(ix => 0 <= ix)
-            .reverse()
-            .forEach(ix => details.splice(ix, 1));
+        spliceWhere(details, i => i === json);
         details.splice(0, 0, json);
         details.splice(32);
         recentlyValues[makePointerStrageId(entry.pointer)] = details;
@@ -526,11 +523,7 @@ const setRecentlyValues = async (entry: UndoEntry) =>
     const add = (value: unknown) =>
     {
         const json = JSON.stringify(value);
-        values
-            .map((i, ix) => i === value ? ix: -1)
-            .filter(ix => 0 <= ix)
-            .reverse()
-            .forEach(ix => values.splice(ix, 1));
+        spliceWhere(values, i => i === json);
         values.splice(0, 0, json);
     };
     add(entry.oldValue); // blitz 以外で設定されてた値を拾う為
