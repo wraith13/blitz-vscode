@@ -64,6 +64,7 @@ interface SettingsEntry extends PackageJsonConfigurationProperty
 {
     id: string;
 };
+const makeSettingsEntry = (id: string, property: PackageJsonConfigurationProperty): SettingsEntry => Object.assign({ id, }, property);
 interface SchemasSettingsDefault
 {
     properties: { [key: string]: PackageJsonConfigurationProperty };
@@ -86,6 +87,13 @@ interface SettingsFocus extends SettingsContext
     context: CommandContext;
     entry: SettingsEntry;
 }
+const makeFocusDetail = (focus: SettingsFocus, detailEntry: SettingsEntry): SettingsFocus =>
+({
+    configurationTarget: focus.configurationTarget,
+    overrideInLanguage: focus.overrideInLanguage,
+    context: focus.context,
+    entry: detailEntry,
+});
 const makePointer = (focus: SettingsFocus): SettingsPointer =>
 ({
     configurationTarget: focus.configurationTarget,
@@ -93,6 +101,14 @@ const makePointer = (focus: SettingsFocus): SettingsPointer =>
     id: focus.entry.id,
     detailId: [],
     scope: makeConfigurationScope(focus),
+});
+const makePointerDetail = (pointer: SettingsPointer, detailId: string): SettingsPointer =>
+({
+    configurationTarget: pointer.configurationTarget,
+    overrideInLanguage: pointer.overrideInLanguage,
+    id: pointer.id,
+    detailId: pointer.detailId.concat(detailId),
+    scope: pointer.scope,
 });
 interface SettingsPointer extends SettingsContext
 {
@@ -484,12 +500,12 @@ interface UndoEntry
 const recentlyEntriesStrageId = `wraith13.blitz.recently.entries`;
 const recentlyDetailsStrageId = `wraith13.blitz.recently.details`;
 const recentlyValuesStrageId = `wraith13.blitz.recently.values`;
-const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) || [];
+const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) ?? [];
 const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify(pointer.id);
-const getRecentlyDetailsRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyDetailsStrageId) || { };
-const getRecentlyDetails = (pointer: SettingsPointer) => getRecentlyDetailsRoot()[makePointerStrageId(pointer)] || [];
-const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyValuesStrageId) || { };
-const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] || [];
+const getRecentlyDetailsRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyDetailsStrageId) ?? { };
+const getRecentlyDetails = (pointer: SettingsPointer) => getRecentlyDetailsRoot()[makePointerStrageId(pointer)] ?? [];
+const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyValuesStrageId) ?? { };
+const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] ?? [];
 const setRecentlyEntries = async (entry: UndoEntry) =>
 {
     const recentlyEntries = getRecentlyEntries();
@@ -1037,7 +1053,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
     const result: CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
     {
-        const array = getConfiguration <any[]> (pointer) ?? [ ];
+        const array = getConfiguration<any[]>(pointer) ?? [ ];
         if (Array.isArray(array))
         {
             if (entry.items?.type && hasType(entry.items, "null"))
@@ -1078,6 +1094,56 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                     });
                 }
             );
+        }
+    }
+    return result;
+};
+export const makeSettingValueEditObjectItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
+{
+    const pointer = makePointer(focus);
+    const entry = focus.entry;
+    const result: CommandMenuItem[] = [ ];
+    if (hasType(entry, "object"))
+    {
+        const object = getConfiguration<any>(pointer);
+        if ( ! Array.isArray(object) && entry.properties)
+        {
+            const properties = JSON.parse(JSON.stringify(entry.properties)) ?? { };
+            if (entry.allOf)
+            {
+                entry.allOf.forEach
+                (
+                    i =>
+                    {
+                        if (i.properties)
+                        {
+                            Object.assign
+                            (
+                                properties,
+                                i.properties
+                            );
+                        }
+                    }
+                );
+            }
+            const recentlies = getRecentlyDetails(pointer);
+            recentlies
+                .filter(i => undefined !== properties[i])
+                .concat(Object.keys(properties).filter(i => recentlies.indexOf(i) < 0))
+                .forEach
+                (
+                    i => result.push
+                    ({
+                        label: `$(edit) ${i}`,
+                        detail: properties[i].description,
+                        command: async () => await editSettingItem
+                        (
+                            makeFocusDetail(focus, makeSettingsEntry(i, properties[i])),
+                            makePointerDetail(pointer, i),
+                            oldValue,
+                        ),
+                    })
+                );
         }
     }
     return result;
@@ -1346,7 +1412,8 @@ async (
     (
         await makeEditSettingValueItemList(focus, oldValue),
         makeSettingValueItemList(focus, oldValue),
-        makeSettingValueEditArrayItemList(focus, oldValue)
+        makeSettingValueEditArrayItemList(focus, oldValue),
+        makeSettingValueEditObjectItemList(focus, oldValue)
     ),
     {
         placeHolder: `${makeSettingLabel(focus.entry.id)} ( ${focus.entry.id} ):`,
