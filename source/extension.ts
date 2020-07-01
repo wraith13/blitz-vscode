@@ -645,9 +645,8 @@ export const makeSettingValueItem =
     preview: async () => await setConfigurationQueue(entry.pointer, entry.newValue),
     command: async () => await setConfiguration(entry),
 });
-export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
+export const makeSettingValueItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
 {
-    const pointer = makePointer(focus);
     const entry = focus.entry;
     const list: { value: any, description: string[], detail?: string }[ ] = [ ];
     const register = (value: any, description?: string, detail?: string) =>
@@ -678,7 +677,9 @@ export const makeSettingValueItemList = (focus: SettingsFocus, oldValue: any): C
             });
         }
     };
-    const types = ("string" === typeof entry.type ? [ entry.type ]: entry.type);
+    const types =
+        undefined === entry.type ? [ ]:
+        ("string" === typeof entry.type ? [ entry.type ]: entry.type);
     if (0 <= types.indexOf("null"))
     {
         register(null);
@@ -840,7 +841,7 @@ export const hasType = (entry: PackageJsonConfigurationProperty, type: PrimaryCo
 };
 export const editSettingValue =
 async (
-    focus: SettingsFocus,
+    pointer: SettingsPointer,
     oldValue: any,
     //validateInput: (input: string) => string | undefined | null | Thenable<string | undefined | null>,
     validateInput: (input: string) => string | undefined | null,
@@ -848,7 +849,6 @@ async (
     value: string = toStringOrUndefined(oldValue)
 ) =>
 {
-    const pointer = makePointer(focus);
     const rollback = makeRollBackMethod(pointer, oldValue);
     const input = await vscode.window.showInputBox
     ({
@@ -883,7 +883,7 @@ export const toStringOfDefault = (value: any, defaultValue: any) =>
         );
 export const toStringOrUndefined = (value: any) => toStringOfDefault(value, undefined);
 export const toStringForce = (value: any) => toStringOfDefault(value, "undefined");
-export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValue: any): Promise<CommandMenuItem[]> =>
+export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): Promise<CommandMenuItem[]> =>
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
@@ -895,7 +895,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
             label: "$(edit) Input string",
             command: async () => await editSettingValue
             (
-                focus,
+                pointer,
                 oldValue,
                 () => undefined,
                 input => input,
@@ -910,7 +910,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
             label: "$(edit) Input integer",
             command: async () => await editSettingValue
             (
-                focus,
+                pointer,
                 oldValue,
                 input =>
                 {
@@ -941,7 +941,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
             label: "$(edit) Input number",
             command: async () => await editSettingValue
             (
-                focus,
+                pointer,
                 oldValue,
                 input =>
                 {
@@ -972,7 +972,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
             label: "$(edit) Input array",
             command: async () => await editSettingValue
             (
-                focus,
+                pointer,
                 oldValue,
                 input =>
                 {
@@ -1006,7 +1006,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
             label: "$(edit) Input object",
             command: async () => await editSettingValue
             (
-                focus,
+                pointer,
                 oldValue,
                 input =>
                 {
@@ -1046,9 +1046,8 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, oldValu
     }
     return result;
 };
-export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
+export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
 {
-    const pointer = makePointer(focus);
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
@@ -1073,7 +1072,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
                     label: `$(add) Add string item`,
                     command: async () => await editSettingValue
                     (
-                        focus,
+                        pointer,
                         oldValue,
                         () => undefined,
                         input => array.concat([ input ]),
@@ -1098,53 +1097,49 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, oldValue
     }
     return result;
 };
-export const makeSettingValueEditObjectItemList = (focus: SettingsFocus, oldValue: any): CommandMenuItem[] =>
+export const makeSettingValueEditObjectItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
 {
-    const pointer = makePointer(focus);
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
-    if (hasType(entry, "object"))
+    const object = getConfiguration<any>(pointer);
+    if ( ! Array.isArray(object))
     {
-        const object = getConfiguration<any>(pointer);
-        if ( ! Array.isArray(object) && entry.properties)
+        const properties = JSON.parse(JSON.stringify(entry.properties ?? { }));
+        if (entry.allOf)
         {
-            const properties = JSON.parse(JSON.stringify(entry.properties)) ?? { };
-            if (entry.allOf)
-            {
-                entry.allOf.forEach
-                (
-                    i =>
+            entry.allOf.forEach
+            (
+                i =>
+                {
+                    if (i.properties)
                     {
-                        if (i.properties)
-                        {
-                            Object.assign
-                            (
-                                properties,
-                                i.properties
-                            );
-                        }
-                    }
-                );
-            }
-            const recentlies = getRecentlyDetails(pointer);
-            recentlies
-                .filter(i => undefined !== properties[i])
-                .concat(Object.keys(properties).filter(i => recentlies.indexOf(i) < 0))
-                .forEach
-                (
-                    i => result.push
-                    ({
-                        label: `$(edit) ${i}`,
-                        detail: properties[i].description,
-                        command: async () => await editSettingItem
+                        Object.assign
                         (
-                            makeFocusDetail(focus, makeSettingsEntry(i, properties[i])),
-                            makePointerDetail(pointer, i),
-                            oldValue,
-                        ),
-                    })
-                );
+                            properties,
+                            i.properties
+                        );
+                    }
+                }
+            );
         }
+        const recentlies = getRecentlyDetails(pointer);
+        recentlies
+            .filter(i => undefined !== properties[i])
+            .concat(Object.keys(properties).filter(i => recentlies.indexOf(i) < 0))
+            .forEach
+            (
+                i => result.push
+                ({
+                    label: `$(edit) ${i}`,
+                    detail: properties[i].description,
+                    command: async () => await editSettingItem
+                    (
+                        makeFocusDetail(focus, makeSettingsEntry(i, properties[i])),
+                        makePointerDetail(pointer, i),
+                        oldValue?.[i],
+                    ),
+                })
+            );
     }
     return result;
 };
@@ -1410,10 +1405,10 @@ async (
     ]
     .concat
     (
-        await makeEditSettingValueItemList(focus, oldValue),
-        makeSettingValueItemList(focus, oldValue),
-        makeSettingValueEditArrayItemList(focus, oldValue),
-        makeSettingValueEditObjectItemList(focus, oldValue)
+        await makeEditSettingValueItemList(focus, pointer, oldValue),
+        makeSettingValueItemList(focus, pointer, oldValue),
+        makeSettingValueEditArrayItemList(focus, pointer, oldValue),
+        makeSettingValueEditObjectItemList(focus, pointer, oldValue)
     ),
     {
         placeHolder: `${makeSettingLabel(focus.entry.id)} ( ${focus.entry.id} ):`,
