@@ -181,18 +181,28 @@ const loadReference = async <T extends object>(context: CommandContext, self: an
 };
 const resolveReference = async <T extends { "$ref"?: string }>(context: CommandContext, self: any, current: T = self): Promise<T> =>
 {
+    if (current && "object" === typeof current && "string" === typeof current.$ref)
+    {
+        await loadReference(context, self, current, current.$ref);
+        delete current.$ref;
+    }
+    return current;
+};
+/*
+const recursiveResolveReference = async <T extends { "$ref"?: string }>(context: CommandContext, self: any, current: T = self): Promise<T> =>
+{
     if (current && "object" === typeof current)
     {
         if (Array.isArray(current))
         {
-            await Promise.all(current.map(i => resolveReference(context, self, i)));
+            await Promise.all(current.map(i => recursiveResolveReference(context, self, i)));
         }
         else
         {
             if ("string" === typeof current.$ref)
             {
                 await loadReference(context, self, current, current.$ref);
-                current.$ref = undefined;
+                delete current.$ref;
             }
             else
             {
@@ -200,13 +210,14 @@ const resolveReference = async <T extends { "$ref"?: string }>(context: CommandC
                 (
                     Object
                         .keys(current)
-                        .map(key => resolveReference(context, self, (<any>current)[key]))
+                        .map(key => recursiveResolveReference(context, self, (<any>current)[key]))
                 );
             }
         }
     }
     return current;
 };
+*/
 const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> => <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/default");
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
@@ -1097,7 +1108,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
     }
     return result;
 };
-export const makeSettingValueEditObjectItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
+export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): Promise<CommandMenuItem[]> =>
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
@@ -1107,19 +1118,23 @@ export const makeSettingValueEditObjectItemList = (focus: SettingsFocus, pointer
         const properties = JSON.parse(JSON.stringify(entry.properties ?? { }));
         if (entry.allOf)
         {
-            entry.allOf.forEach
+            await Promise.all
             (
-                i =>
-                {
-                    if (i.properties)
+                entry.allOf.map
+                (
+                    async (i) =>
                     {
-                        Object.assign
-                        (
-                            properties,
-                            i.properties
-                        );
+                        await resolveReference(focus.context, i);
+                        if (i.properties)
+                        {
+                            Object.assign
+                            (
+                                properties,
+                                await resolveReference(focus.context, i.properties)
+                            );
+                        }
                     }
-                }
+                )
             );
         }
         const recentlies = getRecentlyDetails(pointer);
@@ -1134,7 +1149,7 @@ export const makeSettingValueEditObjectItemList = (focus: SettingsFocus, pointer
                     detail: properties[i].description,
                     command: async () => await editSettingItem
                     (
-                        makeFocusDetail(focus, makeSettingsEntry(i, properties[i])),
+                        makeFocusDetail(focus, makeSettingsEntry(i, await resolveReference(focus.context, properties[i]))),
                         makePointerDetail(pointer, i),
                         oldValue?.[i],
                     ),
@@ -1408,7 +1423,7 @@ async (
         await makeEditSettingValueItemList(focus, pointer, oldValue),
         makeSettingValueItemList(focus, pointer, oldValue),
         makeSettingValueEditArrayItemList(focus, pointer, oldValue),
-        makeSettingValueEditObjectItemList(focus, pointer, oldValue)
+        await makeSettingValueEditObjectItemList(focus, pointer, oldValue)
     ),
     {
         placeHolder: `${makeSettingLabel(focus.entry.id)} ( ${focus.entry.id} ):`,
