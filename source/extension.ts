@@ -720,8 +720,8 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
             )
         );
     }
-    register(getDefaultValue(entry), "default");
-    register(getConfiguration(pointer), "current");
+    register(getDetailValue(getDefaultValue(entry), pointer.detailId), "default");
+    register(oldValue, "current");
     if (0 <= (<PrimaryConfigurationType[]>[ "string", "integer", "number", "array", "object" ]).filter(i => 0 <= types.indexOf(i)).length)
     {
         getRecentlyValues(pointer)
