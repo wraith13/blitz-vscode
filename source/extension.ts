@@ -720,8 +720,15 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
             )
         );
     }
-    register(getDetailValue(getDefaultValue(entry), pointer.detailId), "default");
-    register(oldValue, "current");
+    const defaultValue = getDetailValue(getDefaultValue(entry), pointer.detailId);
+    if (undefined !== defaultValue)
+    {
+        register(defaultValue, "default");
+    }
+    if (undefined !== oldValue)
+    {
+        register(oldValue, "current");
+    }
     if (0 <= (<PrimaryConfigurationType[]>[ "string", "integer", "number", "array", "object" ]).filter(i => 0 <= types.indexOf(i)).length)
     {
         getRecentlyValues(pointer)
@@ -1414,6 +1421,13 @@ async (
         makeShowDescriptionMenu(focus),
         {
             label: "$(discard) Reset",
+            description:
+                [
+                    undefined !== getDetailValue(getDefaultValue(focus.entry), pointer.detailId) ? "default": undefined,
+                    undefined !== oldValue ? "current": undefined,
+                ]
+                .filter(i => undefined !== i)
+                .join(", "),
             preview: async () => await setConfigurationQueue(pointer, undefined),
             command: async () => await setConfiguration({ pointer, newValue: undefined, oldValue, }),
         }
