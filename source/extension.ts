@@ -1153,6 +1153,7 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
                 i => result.push
                 ({
                     label: `$(edit) ${i}`,
+                    description: makeEditSettingDescriptionDetail(focus.entry, pointer.detailId.concat(i), oldValue?.[i]),
                     detail: properties[i].description,
                     command: async () => await editSettingItem
                     (
@@ -1165,6 +1166,17 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
     }
     return result;
 };
+export const makeEditSettingDescriptionDetail = (entry: SettingsEntry, detailId: string[], value: any) =>
+    (
+        undefined === value ?
+            "":
+            "* "
+    )
+    + [entry.id].concat(detailId).join(".")
+    //+ ": "
+    //+ makeDisplayType(getDetailValue(entry, detailId)) 型を取得できない事はないけど、メニューの表示が数秒単位で遅くなるので流石に都合が悪い・・・
+    + " = "
+    + JSON.stringify(value);
 export const makeFullDescription = (entry: SettingsEntry) =>
 {
     let description = entry.description ?? markdownToPlaintext(entry.markdownDescription) ?? "(This setting item has no description)";
@@ -1426,7 +1438,7 @@ async (
                     undefined !== getDetailValue(getDefaultValue(focus.entry), pointer.detailId) ? "default": undefined,
                     undefined !== oldValue ? "current": undefined,
                 ]
-                .filter(i => undefined !== i)
+                .filter(i => 0 < (i?.length ?? 0))
                 .join(", "),
             preview: async () => await setConfigurationQueue(pointer, undefined),
             command: async () => await setConfiguration({ pointer, newValue: undefined, oldValue, }),
