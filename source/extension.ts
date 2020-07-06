@@ -120,19 +120,47 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
 {
     if (0 < detailId.length)
     {
-        const sureRoot = root ?? { };
-        let current = sureRoot;
-        for(let i = 0; 0 < detailId.length -1; ++i)
+        if (undefined !== value)
         {
-            const key = detailId[i];
-            if (undefined === current[key])
+            const sureRoot = root ?? { };
+            if (1 < detailId.length)
             {
-                current[key] = { };
+                sureRoot[detailId[0]] = setDetailValue(sureRoot[detailId[0]] ?? { }, detailId.filter((_i, ix) => 0 < ix), value);
             }
-            current = current[key];
+            else
+            {
+                sureRoot[detailId[0]] = value;
+            }
+            return sureRoot;
         }
-        current[detailId[detailId.length -1]] = value;
-        return sureRoot;
+        else
+        {
+            if (undefined === root)
+            {
+                return root;
+            }
+            else
+            {
+                if (undefined !== root[detailId[0]])
+                {
+                    if (1 < detailId.length)
+                    {
+                        setDetailValue(root[detailId[0]], detailId.filter((_i, ix) => 0 < ix), value);
+                        if (Object.keys(root[detailId[0]]).length <= 0)
+                        {
+                            delete root[detailId[0]];
+                        }
+                    }
+                    else
+                    {
+                        delete root[detailId[0]];
+                    }
+                }
+                return 0 < Object.keys(root).length ?
+                    root:
+                    undefined;
+            }
+        }
     }
     else
     {
