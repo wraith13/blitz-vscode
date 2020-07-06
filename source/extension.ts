@@ -120,7 +120,8 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
 {
     if (0 < detailId.length)
     {
-        let current = root;
+        const sureRoot = root ?? { };
+        let current = sureRoot;
         for(let i = 0; 0 < detailId.length -1; ++i)
         {
             const key = detailId[i];
@@ -131,7 +132,7 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
             current = current[key];
         }
         current[detailId[detailId.length -1]] = value;
-        return root;
+        return sureRoot;
     }
     else
     {
@@ -407,7 +408,7 @@ export const getValueFromInspectResult =
     }
     return undefined;
 };
-export const getConfiguration = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
+export const getConfigurationProjectionValue = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
 (
     makeConfigurationSection(pointer.id),
     pointer.scope
@@ -415,6 +416,11 @@ export const getConfiguration = <T>(pointer: SettingsPointer): T | undefined => 
 .get<T>
 (
     makeConfigurationKey(pointer.id)
+);
+export const getConfigurationTargetValue = <T>(pointer: SettingsPointer): T | undefined => getValueFromInspectResult
+(
+    pointer,
+    inspectConfiguration(pointer)
 );
 export const setConfigurationRaw =
 async (
@@ -429,7 +435,7 @@ async (
 (
     makeConfigurationKey(pointer.id),
     0 < pointer.detailId.length ?
-        setDetailValue(getConfiguration(pointer), pointer.detailId, value):
+        setDetailValue(getConfigurationTargetValue(pointer), pointer.detailId, value):
         value,
     pointer.configurationTarget,
     pointer.overrideInLanguage
@@ -578,11 +584,7 @@ const makeUndoEntry =
     newValue: unknown,
     oldValue: unknown = getDetailValue
     (
-        getValueFromInspectResult
-        (
-            pointer,
-            inspectConfiguration(pointer)
-        ),
+        getConfigurationTargetValue(pointer),
         pointer.detailId
     )
 ) => ({ pointer, oldValue, newValue, });
@@ -1070,7 +1072,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
     const result: CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
     {
-        const array = getConfiguration<any[]>(pointer) ?? [ ];
+        const array = getConfigurationTargetValue<any[]>(pointer) ?? [ ];
         if (Array.isArray(array))
         {
             if (entry.items?.type && hasType(entry.items, "null"))
@@ -1119,7 +1121,7 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
-    const object = getConfiguration<any>(pointer);
+    const object = getConfigurationProjectionValue<any>(pointer);
     if ( ! Array.isArray(object))
     {
         const properties = JSON.parse(JSON.stringify(entry.properties ?? { }));
@@ -1166,13 +1168,13 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
     }
     return result;
 };
-export const makeEditSettingDescriptionDetail = (entry: SettingsEntry, detailId: string[], value: any) =>
+export const makeEditSettingDescriptionDetail = (_entry: SettingsEntry, _detailId: string[], value: any) =>
     (
         undefined === value ?
             "":
             "* "
     )
-    + [entry.id].concat(detailId).join(".")
+    //+ [entry.id].concat(detailId).join(".") ここでは冗長なだけなので削る
     //+ ": "
     //+ makeDisplayType(getDetailValue(entry, detailId)) 型を取得できない事はないけど、メニューの表示が数秒単位で遅くなるので流石に都合が悪い・・・
     + " = "
@@ -1417,14 +1419,10 @@ export const makeRollBackMethod = (pointer: SettingsPointer, value: any) =>
 export const editSettingItem =
 async (
     focus: SettingsFocus,
-    pointer =  makePointer(focus),
+    pointer = makePointer(focus),
     oldValue = getDetailValue
     (
-        getValueFromInspectResult
-        (
-            focus,
-            inspectConfiguration(pointer)
-        ),
+        getConfigurationTargetValue(pointer),
         pointer.detailId
     ),
 ) => await showQuickPick
@@ -1555,7 +1553,7 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
                 description: makeEditSettingDescription
                 (
                     entry,
-                    getConfiguration
+                    getConfigurationProjectionValue
                     (
                         makePointer
                         ({
