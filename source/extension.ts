@@ -94,6 +94,12 @@ const makeFocusDetail = (focus: SettingsFocus, detailEntry: SettingsEntry): Sett
     context: focus.context,
     entry: detailEntry,
 });
+interface SettingsPointer extends SettingsContext
+{
+    id: string;
+    detailId: string[];
+    scope: vscode.ConfigurationScope | null | undefined;
+}
 const makePointer = (focus: SettingsFocus): SettingsPointer =>
 ({
     configurationTarget: focus.configurationTarget,
@@ -110,12 +116,6 @@ const makePointerDetail = (pointer: SettingsPointer, detailId: string): Settings
     detailId: pointer.detailId.concat(detailId),
     scope: pointer.scope,
 });
-interface SettingsPointer extends SettingsContext
-{
-    id: string;
-    detailId: string[];
-    scope: vscode.ConfigurationScope | null | undefined;
-}
 const setDetailValue = (root: any, detailId: string[], value: unknown) =>
 {
     if (0 < detailId.length)
@@ -135,11 +135,7 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
         }
         else
         {
-            if (undefined === root)
-            {
-                return root;
-            }
-            else
+            if (undefined !== root)
             {
                 if (undefined !== root[detailId[0]])
                 {
@@ -156,10 +152,12 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
                         delete root[detailId[0]];
                     }
                 }
-                return 0 < Object.keys(root).length ?
-                    root:
-                    undefined;
+                if (0 < Object.keys(root).length)
+                {
+                    return root;
+                }
             }
+            return undefined;
         }
     }
     else
@@ -1478,15 +1476,20 @@ async (
         await makeSettingValueEditObjectItemList(focus, pointer, oldValue)
     ),
     {
-        placeHolder: `${makeSettingLabel(focus.entry.id)} ( ${focus.entry.id} ):`,
+        placeHolder: `${makeSettingLabel(pointer)} ( ${makeSettingIdLabel(pointer)} ):`,
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
     }
 );
-export const makeSettingLabel = (id: string) =>　id
-    .replace(/\./mg, ": ")
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/(^|\s)([a-z])/g,(_s, m1, m2) => `${m1}${m2.toUpperCase()}`);
+export const makeSettingLabel = (pointer: SettingsPointer) => [ pointer.id, ].concat(pointer.detailId).map
+    (
+        i => i
+        .replace(/\./mg, ": ")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/(^|\s)([a-z])/g,(_s, m1, m2) => `${m1}${m2.toUpperCase()}`)
+    )
+    .join(" > ");
+export const makeSettingIdLabel = (pointer: SettingsPointer) =>　[ pointer.id, ].concat(pointer.detailId).join(" > ");
 export const makeConfigurationScopeUri = (configurationTarget: vscode.ConfigurationTarget): vscode.Uri | undefined =>
 {
     const activeDocumentUri = vscode.window.activeTextEditor?.document.uri;
@@ -1551,7 +1554,7 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
         result.push
         ({
             label: `$(debug-step-back) Undo`,
-            detail: `${makeSettingLabel(entry.pointer.id)}(${makeContextLabel(entry.pointer)}): ${toStringForce(entry.newValue)} $(arrow-right) ${toStringForce(entry.oldValue)}`,
+            detail: `${makeSettingLabel(entry.pointer)} ( ${makeContextLabel(entry.pointer)} ): ${toStringForce(entry.newValue)} $(arrow-right) ${toStringForce(entry.oldValue)}`,
             command: async () => await UndoConfiguration(),
         });
     }
@@ -1562,7 +1565,7 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
         ({
             label: `$(debug-step-over) Redo`,
             description: makeContextLabel(entry.pointer),
-            detail: `${makeSettingLabel(entry.pointer.id)}(${makeContextLabel(entry.pointer)}): ${toStringForce(entry.oldValue)} $(arrow-right) ${toStringForce(entry.newValue)}`,
+            detail: `${makeSettingLabel(entry.pointer)} ( ${makeContextLabel(entry.pointer)} ): ${toStringForce(entry.oldValue)} $(arrow-right) ${toStringForce(entry.newValue)}`,
             command: async () => await RedoConfiguration(),
         });
     }
@@ -1573,27 +1576,34 @@ export const editSettings = async (context: CommandContext) => await showQuickPi
     makeUndoMenu()
     .concat
     (
-        (await aggregateSettings(context) ) .map
+        (await aggregateSettings(context))
+        .map
         (
             entry =>
             ({
-                label: `$(settings-gear) ${makeSettingLabel(entry.id)}`,
+                entry,
+                // ここの SettingPointer は処理の都合上のダミー
+                pointer: makePointer
+                ({
+                    context,
+                    configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                    overrideInLanguage: true,
+                    entry,
+                })
+            })
+        )
+        .map
+        (
+            i =>
+            ({
+                label: `$(settings-gear) ${makeSettingLabel(i.pointer)}`,
                 description: makeEditSettingDescription
                 (
-                    entry,
-                    getConfigurationProjectionValue
-                    (
-                        makePointer
-                        ({
-                            context,
-                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                            overrideInLanguage: true,
-                            entry,
-                        })
-                    )
+                    i.entry,
+                    getConfigurationProjectionValue(i.pointer)
                 ),
-                detail: entry.description ?? markdownToPlaintext(entry.markdownDescription),
-                command: async () => await selectContext(context, await resolveReference(context, entry)),
+                detail: i.entry.description ?? markdownToPlaintext(i.entry.markdownDescription),
+                command: async () => await selectContext(context, await resolveReference(context, i.entry)),
             })
         )
     ),
