@@ -544,7 +544,7 @@ const recentlyEntriesStrageId = `wraith13.blitz.recently.entries`;
 const recentlyDetailsStrageId = `wraith13.blitz.recently.details`;
 const recentlyValuesStrageId = `wraith13.blitz.recently.values`;
 const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) ?? [];
-const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify(pointer.id);
+const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify([pointer.id].concat(pointer.detailId));
 const getRecentlyDetailsRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyDetailsStrageId) ?? { };
 const getRecentlyDetails = (pointer: SettingsPointer) => getRecentlyDetailsRoot()[makePointerStrageId(pointer)] ?? [];
 const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyValuesStrageId) ?? { };
@@ -1554,7 +1554,8 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
         result.push
         ({
             label: `$(debug-step-back) Undo`,
-            detail: `${makeSettingLabel(entry.pointer)} ( ${makeContextLabel(entry.pointer)} ): ${toStringForce(entry.newValue)} $(arrow-right) ${toStringForce(entry.oldValue)}`,
+            description: makeContextLabel(entry.pointer),
+            detail: `${makeSettingLabel(entry.pointer)} : ${toStringForce(entry.newValue)} $(arrow-right) ${toStringForce(entry.oldValue)}`,
             command: async () => await UndoConfiguration(),
         });
     }
@@ -1565,7 +1566,7 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
         ({
             label: `$(debug-step-over) Redo`,
             description: makeContextLabel(entry.pointer),
-            detail: `${makeSettingLabel(entry.pointer)} ( ${makeContextLabel(entry.pointer)} ): ${toStringForce(entry.oldValue)} $(arrow-right) ${toStringForce(entry.newValue)}`,
+            detail: `${makeSettingLabel(entry.pointer)} : ${toStringForce(entry.oldValue)} $(arrow-right) ${toStringForce(entry.newValue)}`,
             command: async () => await RedoConfiguration(),
         });
     }
