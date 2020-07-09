@@ -251,6 +251,7 @@ export interface CommandMenuItem extends vscode.QuickPickItem
     when?: (menus: CommandMenuItem[]) => boolean;
     preview?: () => Promise<unknown>;
     command?: () => Promise<unknown>;
+    tags?: string[];
 }
 export interface QuickPickOptions extends vscode.QuickPickOptions
 {
@@ -678,20 +679,28 @@ export const makeSettingValueItem =
 (
     entry: UndoEntry,
     description?: string,
-    detail?: string
+    detail?: string,
+    when?: (menus: CommandMenuItem[]) => boolean
 ) =>
 ({
     label: `$(tag) ${JSON.stringify(entry.newValue)}`,
     description,
     detail,
+    when,
     preview: async () => await setConfigurationQueue(entry.pointer, entry.newValue),
     command: async () => await setConfiguration(entry),
 });
 export const makeSettingValueItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
 {
     const entry = focus.entry;
-    const list: { value: any, description: string[], detail?: string }[ ] = [ ];
-    const register = (value: any, description?: string, detail?: string) =>
+    const list:
+    {
+        value: any,
+        description: string[],
+        detail?: string,
+        when?: (menus: CommandMenuItem[]) => boolean
+    }[ ] = [ ];
+    const register = (value: any, description?: string, detail?: string, when?: (menus: CommandMenuItem[]) => boolean) =>
     {
         const item = list.filter(i => JSON.stringify(i.value) === JSON.stringify(value))[0];
         if (item)
@@ -708,6 +717,18 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
             {
                 item.detail = detail;
             }
+            if (undefined !== when)
+            {
+                if (undefined === item.when)
+                {
+                    item.when = when;
+                }
+                else
+                {
+                    const oldWhen = item.when;
+                    item.when = menus => oldWhen(menus) && when(menus);
+                }
+            }
         }
         else
         {
@@ -716,6 +737,7 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
                 value,
                 description: undefined !== description ? [ description ]: [ ],
                 detail,
+                when
             });
         }
     };
@@ -754,11 +776,11 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
     const defaultValue = getDetailValue(getDefaultValue(entry), pointer.detailId);
     if (undefined !== defaultValue)
     {
-        register(defaultValue, "default");
+        register(defaultValue, "default", undefined, menus => menus.filter(i => i.tags?.indexOf("typed object")).length <= 0);
     }
     if (undefined !== oldValue)
     {
-        register(oldValue, "current");
+        register(oldValue, "current", undefined, menus => menus.filter(i => i.tags?.indexOf("typed object")).length <= 0);
     }
     if (0 <= (<PrimaryConfigurationType[]>[ "string", "integer", "number", "array", "object" ]).filter(i => 0 <= types.indexOf(i)).length)
     {
@@ -860,7 +882,8 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
         (
             makeUndoEntry(pointer, i.value, oldValue),
             0 < i.description.length ? i.description.join(", "): undefined,
-            i.detail
+            i.detail,
+            i.when
         )
     );
 };
@@ -1192,6 +1215,7 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
                         makePointerDetail(pointer, i),
                         oldValue?.[i],
                     ),
+                    tags: ["typed object"]
                 })
             );
     }
