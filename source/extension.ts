@@ -248,6 +248,7 @@ const recursiveResolveReference = async <T extends { "$ref"?: string }>(context:
 const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> => <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/default");
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
+    when?: (menus: CommandMenuItem[]) => boolean;
     preview?: () => Promise<unknown>;
     command?: () => Promise<unknown>;
 }
@@ -274,9 +275,11 @@ export const showQuickPick = async <T extends CommandMenuItem>
         }
         return false;
     };
+    const solidItems = await items;
     const result = await vscode.window.showQuickPick
     (
-        items,
+        solidItems
+            .filter(i => undefined === i.when || i.when(solidItems)),
         Object.assign
         (
             {
