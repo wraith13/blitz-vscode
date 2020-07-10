@@ -1250,11 +1250,12 @@ const makeShowDescriptionMenu =
         configurationTarget?: vscode.ConfigurationTarget;
         overrideInLanguage?: boolean;
         entry: SettingsEntry;
-    }
+    },
+    pointer?: SettingsPointer
 ): CommandMenuItem =>
 ({
     label: `$(comment) Show Full Description`,
-    description: focus.entry.id,
+    description: undefined === pointer ? focus.entry.id: makeSettingIdLabel(pointer),
     command: async () =>
     {
         const editThisSettingItem = "Edit this setting item"; //"この設定項目を編集...";
@@ -1274,7 +1275,7 @@ const makeShowDescriptionMenu =
         {
         case editThisSettingItem:
             undefined !== focus.configurationTarget && undefined !== focus.overrideInLanguage ?
-                await editSettingItem(<SettingsFocus>focus):
+                await editSettingItem(<SettingsFocus>focus, pointer):
                 await selectContext(focus.context, focus.entry);
             break;
         case editOtherSetingItem:
@@ -1481,7 +1482,7 @@ async (
 ) => await showQuickPick
 (
     [
-        makeShowDescriptionMenu(focus),
+        makeShowDescriptionMenu(focus, pointer),
         {
             label: "$(discard) Reset",
             description:
@@ -1516,7 +1517,7 @@ export const makeSettingLabel = (pointer: SettingsPointer) => [ pointer.id, ].co
         .replace(/(^|\s)([a-z])/g,(_s, m1, m2) => `${m1}${m2.toUpperCase()}`)
     )
     .join(" > ");
-export const makeSettingIdLabel = (pointer: SettingsPointer) =>　[ pointer.id, ].concat(pointer.detailId).join(" > ");
+export const makeSettingIdLabel = (pointer: { id: string, detailId: string[] }) =>　[ pointer.id, ].concat(pointer.detailId).join(" > ");
 export const makeConfigurationScopeUri = (configurationTarget: vscode.ConfigurationTarget): vscode.Uri | undefined =>
 {
     const activeDocumentUri = vscode.window.activeTextEditor?.document.uri;
