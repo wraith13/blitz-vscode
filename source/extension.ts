@@ -719,9 +719,8 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
             }
             if (undefined !== when)
             {
-                if (undefined === item.when)
+                if (undefined !== item.when)
                 {
-                    item.when = when;
                     const oldWhen = item.when;
                     item.when = menus => oldWhen(menus) && when(menus);
                 }
@@ -1203,6 +1202,31 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
         recentlies
             .filter(i => undefined !== properties[i])
             .concat(Object.keys(properties).filter(i => recentlies.indexOf(i) < 0))
+            .sort
+            (
+                (a, b) =>
+                {
+                    const aValue = oldValue?.[a];
+                    const bValue = oldValue?.[b];
+                    if (undefined !== aValue && undefined === bValue)
+                    {
+                        return -1;
+                    }
+                    if (undefined === aValue && undefined !== bValue)
+                    {
+                        return 1;
+                    }
+                    if (a < b)
+                    {
+                        return -1;
+                    }
+                    if (a > b)
+                    {
+                        return 1;
+                    }
+                    return 0;
+                }
+            )
             .forEach
             (
                 i => result.push
