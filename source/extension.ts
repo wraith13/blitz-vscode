@@ -722,11 +722,12 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
                 if (undefined === item.when)
                 {
                     item.when = when;
+                    const oldWhen = item.when;
+                    item.when = menus => oldWhen(menus) && when(menus);
                 }
                 else
                 {
-                    const oldWhen = item.when;
-                    item.when = menus => oldWhen(menus) && when(menus);
+                    item.when = when;
                 }
             }
         }
@@ -776,11 +777,11 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
     const defaultValue = getDetailValue(getDefaultValue(entry), pointer.detailId);
     if (undefined !== defaultValue)
     {
-        register(defaultValue, "default", undefined, menus => menus.filter(i => i.tags?.indexOf("typed object")).length <= 0);
+        register(defaultValue, "default", undefined, menus => menus.filter(i => 0 <= (i.tags?.indexOf("typed object") ?? -1)).length <= 0);
     }
     if (undefined !== oldValue)
     {
-        register(oldValue, "current", undefined, menus => menus.filter(i => i.tags?.indexOf("typed object")).length <= 0);
+        register(oldValue, "current", undefined, menus => menus.filter(i => 0 <= (i.tags?.indexOf("typed object") ?? -1)).length <= 0);
     }
     if (0 <= (<PrimaryConfigurationType[]>[ "string", "integer", "number", "array", "object" ]).filter(i => 0 <= types.indexOf(i)).length)
     {
@@ -918,7 +919,7 @@ async (
     //validateInput: (input: string) => string | undefined | null | Thenable<string | undefined | null>,
     validateInput: (input: string) => string | undefined | null,
     parser: (input: string) => unknown,
-    value: string = toStringOrUndefined(oldValue)
+    value: string// = toStringOrUndefined(oldValue)
 ) =>
 {
     const rollback = makeRollBackMethod(pointer, oldValue);
@@ -959,7 +960,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
-    const value = toStringOrUndefined(await getDefaultValue(entry));
+    const value = toStringOrUndefined(oldValue ?? getDetailValue(await getDefaultValue(entry), pointer.detailId));
     if (undefined === entry.enum && hasType(entry, "string"))
     {
         result.push
