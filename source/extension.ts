@@ -364,12 +364,8 @@ export const makeConfigurationKey = (id: string) => id.replace(/^(.*)(\.)([^.]*)
 export const aggregateSettings = async (context: CommandContext) =>
 {
     const vscodeSettings = await getVscodeSettings(context);
-    const keys = Object.keys(vscodeSettings.properties);
     const recentlies = getRecentlyEntries();
-    const ids = recentlies
-        .filter(i => 0 <= keys.indexOf(i))
-        .concat(keys.filter(i => recentlies.indexOf(i) < 0));
-    return ids
+    return Object.keys(vscodeSettings.properties)
         .map
         (
             id => Object.assign
@@ -379,6 +375,68 @@ export const aggregateSettings = async (context: CommandContext) =>
                 },
                 vscodeSettings.properties[id]
             )
+        )
+        .sort
+        (
+            (a, b) =>
+            {
+                const aRecentlyIndex = recentlies.indexOf(a.id);
+                const bRecentlyIndex = recentlies.indexOf(b.id);
+                if (0 <= aRecentlyIndex && bRecentlyIndex < 0)
+                {
+                    return -1;
+                }
+                if (aRecentlyIndex < 0 && 0 <= bRecentlyIndex)
+                {
+                    return 1;
+                }
+                if (0 <= aRecentlyIndex && 0 <= bRecentlyIndex)
+                {
+                    if (aRecentlyIndex < bRecentlyIndex)
+                    {
+                        return -1;
+                    }
+                    if (aRecentlyIndex > bRecentlyIndex)
+                    {
+                        return 1;
+                    }
+                }
+                const aHasValue = hasValueFromInspectResult
+                (
+                    inspectConfiguration
+                    (
+                        makePointer
+                        ({
+                            context,
+                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                            overrideInLanguage: true,
+                            entry: a,
+                        })
+                    )
+                );
+                const bHasValue = hasValueFromInspectResult
+                (
+                    inspectConfiguration
+                    (
+                        makePointer
+                        ({
+                            context,
+                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                            overrideInLanguage: true,
+                            entry: b,
+                        })
+                    )
+                );
+                if (aHasValue && ! bHasValue)
+                {
+                    return -1;
+                }
+                if ( ! aHasValue && bHasValue)
+                {
+                    return 1;
+                }
+                return 0;
+            }
         );
 };
 export const inspectConfiguration = <T>(pointer: SettingsPointer) => vscode.workspace.getConfiguration
@@ -437,6 +495,34 @@ export const getValueFromInspectResult =
         }
     }
     return undefined;
+};
+
+export const hasValueFromInspectResult =
+<T>(
+    inspect:
+    {
+        key: string,
+        defaultValue?: T,
+        globalValue?: T,
+        workspaceValue?: T,
+        workspaceFolderValue?: T,
+        defaultLanguageValue?: T,
+        globalLanguageValue?: T,
+        workspaceLanguageValue?: T,
+        workspaceFolderLanguageValue?: T,
+        languageIds?: string[],
+    } | undefined
+) =>
+{
+    const result =
+        undefined !== inspect?.globalValue ||
+        undefined !== inspect?.workspaceValue ||
+        undefined !== inspect?.workspaceFolderValue ||
+        undefined !== inspect?.globalLanguageValue ||
+        undefined !== inspect?.workspaceLanguageValue ||
+        undefined !== inspect?.workspaceFolderLanguageValue;// ||
+        //0 < (inspect?.languageIds?.length ?? 0);
+    return result;
 };
 export const getConfigurationProjectionValue = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
 (
