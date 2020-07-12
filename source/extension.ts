@@ -1302,6 +1302,14 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
                     {
                         return 1;
                     }
+                    if ( ! a.startsWith("[") && b.startsWith("["))
+                    {
+                        return -1;
+                    }
+                    if (a.startsWith("[") && ! b.startsWith("["))
+                    {
+                        return 1;
+                    }
                     if (a < b)
                     {
                         return -1;
