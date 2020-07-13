@@ -364,7 +364,6 @@ export const makeConfigurationKey = (id: string) => id.replace(/^(.*)(\.)([^.]*)
 export const aggregateSettings = async (context: CommandContext) =>
 {
     const vscodeSettings = await getVscodeSettings(context);
-    const recentlies = getRecentlyEntries();
     return Object.keys(vscodeSettings.properties)
         .map
         (
@@ -375,68 +374,6 @@ export const aggregateSettings = async (context: CommandContext) =>
                 },
                 vscodeSettings.properties[id]
             )
-        )
-        .sort
-        (
-            (a, b) =>
-            {
-                const aRecentlyIndex = recentlies.indexOf(a.id);
-                const bRecentlyIndex = recentlies.indexOf(b.id);
-                if (0 <= aRecentlyIndex && bRecentlyIndex < 0)
-                {
-                    return -1;
-                }
-                if (aRecentlyIndex < 0 && 0 <= bRecentlyIndex)
-                {
-                    return 1;
-                }
-                if (0 <= aRecentlyIndex && 0 <= bRecentlyIndex)
-                {
-                    if (aRecentlyIndex < bRecentlyIndex)
-                    {
-                        return -1;
-                    }
-                    if (aRecentlyIndex > bRecentlyIndex)
-                    {
-                        return 1;
-                    }
-                }
-                const aHasValue = hasValueFromInspectResult
-                (
-                    inspectConfiguration
-                    (
-                        makePointer
-                        ({
-                            context,
-                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                            overrideInLanguage: true,
-                            entry: a,
-                        })
-                    )
-                );
-                const bHasValue = hasValueFromInspectResult
-                (
-                    inspectConfiguration
-                    (
-                        makePointer
-                        ({
-                            context,
-                            configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                            overrideInLanguage: true,
-                            entry: b,
-                        })
-                    )
-                );
-                if (aHasValue && ! bHasValue)
-                {
-                    return -1;
-                }
-                if ( ! aHasValue && bHasValue)
-                {
-                    return 1;
-                }
-                return 0;
-            }
         );
 };
 export const inspectConfiguration = <T>(pointer: SettingsPointer) => vscode.workspace.getConfiguration
@@ -495,34 +432,6 @@ export const getValueFromInspectResult =
         }
     }
     return undefined;
-};
-
-export const hasValueFromInspectResult =
-<T>(
-    inspect:
-    {
-        key: string,
-        defaultValue?: T,
-        globalValue?: T,
-        workspaceValue?: T,
-        workspaceFolderValue?: T,
-        defaultLanguageValue?: T,
-        globalLanguageValue?: T,
-        workspaceLanguageValue?: T,
-        workspaceFolderLanguageValue?: T,
-        languageIds?: string[],
-    } | undefined
-) =>
-{
-    const result =
-        undefined !== inspect?.globalValue ||
-        undefined !== inspect?.workspaceValue ||
-        undefined !== inspect?.workspaceFolderValue ||
-        undefined !== inspect?.globalLanguageValue ||
-        undefined !== inspect?.workspaceLanguageValue ||
-        undefined !== inspect?.workspaceFolderLanguageValue;// ||
-        //0 < (inspect?.languageIds?.length ?? 0);
-    return result;
 };
 export const getConfigurationProjectionValue = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
 (
@@ -1719,48 +1628,92 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
     }
     return result;
 };
-export const editSettings = async (context: CommandContext) => await showQuickPick
-(
-    makeUndoMenu()
-    .concat
+export const editSettings = async (context: CommandContext) =>
+{
+    const recentlies = getRecentlyEntries();
+    return await showQuickPick
     (
-        (await aggregateSettings(context))
-        .map
+        makeUndoMenu()
+        .concat
         (
-            entry =>
-            ({
-                entry,
-                // ここの SettingPointer は処理の都合上のダミー
-                pointer: makePointer
+            (await aggregateSettings(context))
+            .map
+            (
+                entry =>
                 ({
-                    context,
-                    configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
-                    overrideInLanguage: true,
                     entry,
+                    // ここの SettingPointer は処理の都合上のダミー
+                    pointer: makePointer
+                    ({
+                        context,
+                        configurationTarget: vscode.ConfigurationTarget.WorkspaceFolder,
+                        overrideInLanguage: true,
+                        entry,
+                    })
                 })
-            })
-        )
-        .map
-        (
-            i =>
-            ({
-                label: `$(settings-gear) ${makeSettingLabel(i.pointer)}`,
-                description: makeEditSettingDescription
-                (
-                    i.entry,
-                    getConfigurationProjectionValue(i.pointer)
-                ),
-                detail: i.entry.description ?? markdownToPlaintext(i.entry.markdownDescription),
-                command: async () => await selectContext(context, await resolveReference(context, i.entry)),
-            })
-        )
-    ),
-    {
-        placeHolder: "Select a setting item.",
-        matchOnDescription: true,
-    }
-);
-
+            )
+            .map
+            (
+                i =>
+                ({
+                    entry: i.entry,
+                    pointer: i.pointer,
+                    value: getConfigurationProjectionValue(i.pointer),
+                })
+            )
+            .sort
+            (
+                (a, b) =>
+                {
+                    const aRecentlyIndex = recentlies.indexOf(a.entry.id);
+                    const bRecentlyIndex = recentlies.indexOf(b.entry.id);
+                    if (0 <= aRecentlyIndex && bRecentlyIndex < 0)
+                    {
+                        return -1;
+                    }
+                    if (aRecentlyIndex < 0 && 0 <= bRecentlyIndex)
+                    {
+                        return 1;
+                    }
+                    if (0 <= aRecentlyIndex && 0 <= bRecentlyIndex)
+                    {
+                        if (aRecentlyIndex < bRecentlyIndex)
+                        {
+                            return -1;
+                        }
+                        if (aRecentlyIndex > bRecentlyIndex)
+                        {
+                            return 1;
+                        }
+                    }
+                    if (undefined !== a.value && undefined === b.value)
+                    {
+                        return -1;
+                    }
+                    if (undefined === a.value && undefined !== b.value)
+                    {
+                        return 1;
+                    }
+                    return 0;
+                }
+            )
+            .map
+            (
+                i =>
+                ({
+                    label: `$(settings-gear) ${makeSettingLabel(i.pointer)}`,
+                    description: makeEditSettingDescription(i.entry, i.value),
+                    detail: i.entry.description ?? markdownToPlaintext(i.entry.markdownDescription),
+                    command: async () => await selectContext(context, await resolveReference(context, i.entry)),
+                })
+            )
+        ),
+        {
+            placeHolder: "Select a setting item.",
+            matchOnDescription: true,
+        }
+    );
+};
 const alignmentObject = Object.freeze
 (
     {
