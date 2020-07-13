@@ -60,3 +60,13 @@ see ChangLog on [marketplace](https://marketplace.visualstudio.com/items/wraith1
 ## License
 
 [Boost Software License](https://github.com/wraith13/blitz-vscode/blob/master/LICENSE_1_0.txt)
+
+## Other extensions of wraith13's work
+
+|Icon|Name|Description|
+|---|---|---|
+|![](https://wraith13.gallerycdn.vsassets.io/extensions/wraith13/background-phi-colors/3.1.0/1581619161244/Microsoft.VisualStudio.Services.Icons.Default) |[Background Phi Colors](https://marketplace.visualstudio.com/items?itemName=wraith13.background-phi-colors)|This extension colors the background in various ways.|
+|![](https://wraith13.gallerycdn.vsassets.io/extensions/wraith13/zoombar-vscode/1.2.1/1563089420894/Microsoft.VisualStudio.Services.Icons.Default) |[Zoom Bar](https://marketplace.visualstudio.com/items?itemName=wraith13.zoombar-vscode)|Zoom UI in status bar for VS Code.|
+|![](https://wraith13.gallerycdn.vsassets.io/extensions/wraith13/unsaved-files-vscode/2.1.1/1562823380255/Microsoft.VisualStudio.Services.Icons.Default) |[Unsaved Files](https://marketplace.visualstudio.com/items?itemName=wraith13.unsaved-files-vscode)|Easy access to unsaved files for VS Code.|
+
+See all wraith13's  expansions: <https://marketplace.visualstudio.com/publishers/wraith13>
