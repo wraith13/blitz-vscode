@@ -371,20 +371,20 @@ export const makeConfigurationSection = (id: string) =>
 };
 export const makeConfigurationKey = (id: string) => id.replace(idRegExp, "$3");
 export const aggregateSettings = async (context: CommandContext) =>
-{
-    const vscodeSettings = await getVscodeSettings(context);
-    return Object.keys(vscodeSettings.properties)
-        .map
+    Object.entries
+    (
+        (await getVscodeSettings(context)).properties
+    )
+    .map
+    (
+        ([id, entry]) => Object.assign
         (
-            id => Object.assign
-            (
-                {
-                    id,
-                },
-                vscodeSettings.properties[id]
-            )
-        );
-};
+            {
+                id,
+            },
+            entry
+        )
+    );
 export const inspectConfiguration = <T>(pointer: SettingsPointer) => vscode.workspace.getConfiguration
 (
     makeConfigurationSection(pointer.id),
