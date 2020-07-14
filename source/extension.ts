@@ -359,8 +359,17 @@ export const extensionSettings = (): SettingsEntry[] => vscode.extensions.all
         )
     )
     .reduce((a, b) => a.concat(b), [ ]);
-export const makeConfigurationSection = (id: string) => id.replace(/^(.*)(\.)([^.]*)$/, "$1");
-export const makeConfigurationKey = (id: string) => id.replace(/^(.*)(\.)([^.]*)$/, "$3");
+const idRegExp = /^(.*)(\.)([^.]*)$/;
+export const makeConfigurationSection = (id: string) =>
+{
+    let result: string | undefined = id.replace(idRegExp, "$1");
+    if (id === result)
+    {
+        result = undefined;
+    }
+    return result;
+};
+export const makeConfigurationKey = (id: string) => id.replace(idRegExp, "$3");
 export const aggregateSettings = async (context: CommandContext) =>
 {
     const vscodeSettings = await getVscodeSettings(context);
