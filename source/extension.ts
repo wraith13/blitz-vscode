@@ -1359,6 +1359,8 @@ export const makeContextMenuItem = (focus: SettingsFocus, value: string, descrip
     description,
     command: async () => await editSettingItem(focus),
 });
+const languageOverrideRegExp = /^\[(.*)\]$/;
+export const isLanguageOverrideEntry = (entry: SettingsEntry) => languageOverrideRegExp.test(entry.id);
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
     console.log(`selectContext.entry: ${ JSON.stringify(entry)}`);
@@ -1378,7 +1380,9 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope));
     const workspaceFolderOverridable = 1 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
         (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope && ConfigurationScope.WINDOW !== entry.scope));
-    const languageOverridable = languageId &&
+    const languageOverridable =
+        ! isLanguageOverrideEntry(entry) &&
+        languageId &&
         (entry.overridable || undefined === entry.scope || ConfigurationScope.LANGUAGE_OVERRIDABLE === entry.scope);
     const makeDescription = (defaultValue: any, value: any) => undefined !== value && value === defaultValue ? "default": undefined;
     if (workspaceOverridable || workspaceFolderOverridable || languageOverridable)
