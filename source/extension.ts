@@ -30,6 +30,7 @@ interface PackageJsonConfigurationProperty extends PackageJsonConfigurationBase
     default?: any;
     items?: PackageJsonConfigurationProperty;
     enum?: string[];
+    pattern?: string;
     minimum?: number;
     maximum?: number;
     overridable?: boolean;
@@ -973,7 +974,17 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
             (
                 pointer,
                 oldValue,
-                () => undefined,
+                input =>
+                {
+                    if (undefined !== entry.pattern)
+                    {
+                        if (new RegExp(entry.pattern).test(input))
+                        {
+                            return `This value must match ${entry.pattern}`;
+                        }
+                    }
+                    return undefined;
+                },
                 input => input,
                 value
             )
