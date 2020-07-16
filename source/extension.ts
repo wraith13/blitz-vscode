@@ -978,7 +978,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                 {
                     if (undefined !== entry.pattern)
                     {
-                        if (new RegExp(entry.pattern).test(input))
+                        if ( ! new RegExp(entry.pattern, "u").test(input))
                         {
                             return `This value must match ${entry.pattern}`;
                         }
