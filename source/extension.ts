@@ -31,6 +31,7 @@ interface PackageJsonConfigurationProperty extends PackageJsonConfigurationBase
     items?: PackageJsonConfigurationProperty;
     enum?: string[];
     pattern?: string;
+    errorMessage?: string;
     minimum?: number;
     maximum?: number;
     overridable?: boolean;
@@ -980,7 +981,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                     {
                         if ( ! new RegExp(entry.pattern, "u").test(input))
                         {
-                            return `This value must match ${entry.pattern}`;
+                            return entry.errorMessage ?? `This value must match ${entry.pattern}`;
                         }
                     }
                     return undefined;
@@ -1161,7 +1162,17 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                     (
                         pointer,
                         oldValue,
-                        () => undefined,
+                        input =>
+                        {
+                            if (undefined !== entry.items?.pattern)
+                            {
+                                if ( ! new RegExp(entry.items?.pattern, "u").test(input))
+                                {
+                                    return entry.items?.errorMessage ?? `This value must match ${entry.items?.pattern}`;
+                                }
+                            }
+                            return undefined;
+                        },
                         input => array.concat([ input ]),
                         "",
                     )
