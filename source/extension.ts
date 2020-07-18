@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as Config from "./lib/config";
+import packageJson from "../package.json";
+const configRoot = Config.makeRoot(packageJson);
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
 // copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110
@@ -1757,8 +1759,8 @@ const alignmentObject = Object.freeze
         "right": vscode.StatusBarAlignment.Right,
     }
 );
-export const statusBarAlignment = new Config.MapEntry("blitz.statusBar.Alignment", alignmentObject);
-export const statusBarLabel = new Config.Entry<string>("blitz.statusBar.Label");
+export const statusBarAlignment = configRoot.makeMapEntry("blitz.statusBar.Alignment", alignmentObject);
+export const statusBarLabel = configRoot.makeEntry<string>("blitz.statusBar.Label");
 const createStatusBarItem =
 (
     properties :

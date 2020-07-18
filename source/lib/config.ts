@@ -1,23 +1,50 @@
 import * as vscode from 'vscode';
-import packageJson from "../../package.json";
 import { Cache } from "./cache";
-export const properties = Object.freeze(packageJson.contributes.configuration[0].properties);
-export const applicationName = packageJson.displayName;
 const sectionKeyRegExp = /^(.+)\.([^.]+)$/;
-export class Entry<valueT>
+type PropertiesBaseType = { [key: string]: any };
+interface PackageJson<PropertiesT extends PropertiesBaseType>
+{
+    contributes: PackageJsonContributes<PropertiesT>;
+}
+interface PackageJsonContributes<PropertiesT extends PropertiesBaseType>
+{
+    configuration: PackageJsonConfiguration<PropertiesT>[];
+}
+interface PackageJsonConfiguration<PropertiesT extends PropertiesBaseType>
+{
+    properties: PropertiesT;
+}
+export const makeRoot = <PropertiesT extends PropertiesBaseType>(packageJson: PackageJson<PropertiesT>) =>
+    new Root(packageJson.contributes.configuration[0].properties);
+export class Root<PropertiesT extends PropertiesBaseType>
+{
+    constructor(public properties: PropertiesT) { }
+    public makeEntry = <valueT>
+    (
+        key: keyof PropertiesT & string,
+        validator?: (value: valueT) => boolean
+    ) => new Entry(this.properties, key, validator);
+    public makeMapEntry = <ObjectT>
+    (
+        key: keyof PropertiesT & string,
+        mapObject: ObjectT
+    ) => new MapEntry(this.properties, key, mapObject);
+};
+export class Entry<PropertiesT extends PropertiesBaseType, valueT>
 {
     public defaultValue: valueT;
     public minValue: valueT | undefined;
     public maxValue: valueT | undefined;
     public constructor
     (
-        public key: keyof typeof properties,
+        public properties: PropertiesT,
+        public key: keyof PropertiesT & string,
         public validator?: (value: valueT) => boolean
     )
     {
-        this.defaultValue = (<any>properties)[key].default;
-        this.minValue = (<any>properties)[key].minimum;
-        this.maxValue = (<any>properties)[key].maximum;
+        this.defaultValue = properties[key].default;
+        this.minValue = properties[key].minimum;
+        this.maxValue = properties[key].maximum;
     }
     regulate = (rawKey: string, value: valueT): valueT =>
     {
@@ -82,16 +109,17 @@ export class Entry<valueT>
     public getCache = this.cache.getCache;
     public clear = this.cache.clear;
 }
-export class MapEntry<ObjectT>
+export class MapEntry<PropertiesT extends PropertiesBaseType, ObjectT>
 {
     public constructor
     (
-        public key: keyof typeof properties,
+        public properties: PropertiesT,
+        public key: keyof PropertiesT & string,
         public mapObject: ObjectT
     )
     {
     }
-    config = new Entry<keyof ObjectT>(this.key, makeEnumValidator(this.mapObject));
+    config = new Entry<PropertiesT, keyof ObjectT>(this.properties, this.key, makeEnumValidator(this.mapObject));
     public get = (languageId: string) => this.mapObject[this.config.cache.get(languageId)];
     public getCache = (languageId: string) => this.mapObject[this.config.cache.getCache(languageId)];
     public clear = this.config.cache.clear;
