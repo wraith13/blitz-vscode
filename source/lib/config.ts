@@ -1,7 +1,15 @@
 import * as vscode from 'vscode';
 import { Cache } from "./cache";
 const sectionKeyRegExp = /^(.+)\.([^.]+)$/;
-type PropertiesBaseType = { [key: string]: any };
+type PropertiesBaseType =
+{
+    [key: string]:
+    {
+        default?: any;
+        minimum?: any;
+        maximum?: any;
+    }
+};
 interface PackageJson<PropertiesT extends PropertiesBaseType>
 {
     contributes: PackageJsonContributes<PropertiesT>;
