@@ -27,22 +27,22 @@
         "commands": [
             {
                 "command": "blitz.editSetting",
-                "title": "Edit Setting",
+                "title": "%blitz.editSetting.title%",
                 "category": "Blitz"
             },
             {
                 "command": "blitz.undoSetting",
-                "title": "Undo Setting",
+                "title": "%blitz.undoSetting.title%",
                 "category": "Blitz"
             },
             {
                 "command": "blitz.redoSetting",
-                "title": "Redo Setting",
+                "title": "%blitz.redoSetting.title%",
                 "category": "Blitz"
             },
             {
                 "command": "blitz.clearHistory",
-                "title": "Clear Setting History",
+                "title": "%blitz.clearHistory.title%",
                 "category": "Blitz"
             }
         ],
@@ -75,7 +75,12 @@
                             "left",
                             "right"
                         ],
-                        "description": "%blitz.statusBar.Alignment.description%"
+                        "description": "%blitz.statusBar.Alignment.description%",
+                        "enumDescriptions": [
+                            "%statusBar.alignment.none%",
+                            "%statusBar.alignment.left%",
+                            "%statusBar.alignment.right%"
+                        ]
                     }
                 }
             }

@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
+import * as Locale from "./lib/locale";
 import * as Config from "./lib/config";
 import packageJson from "../package.json";
+import localeEn from "../package.nls.json";
+import localeJa from "../package.nls.ja.json";
+const locale = Locale.make(localeEn, { "ja": localeJa });
 const configRoot = Config.makeRoot(packageJson);
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
@@ -1746,7 +1750,7 @@ export const editSettings = async (context: CommandContext) =>
             )
         ),
         {
-            placeHolder: "Select a setting item.",
+            placeHolder: locale.string("Select a setting item."),
             matchOnDescription: true,
         }
     );

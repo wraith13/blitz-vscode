@@ -1,0 +1,11 @@
+{
+    "blitz.editSetting.title": "Edit Setting",
+    "blitz.undoSetting.title": "Undo Setting",
+    "blitz.redoSetting.title": "Redo Setting",
+    "blitz.clearHistory.title": "Clear Setting History",
+    "blitz.statusBar.Label.description": "Status bar item's label.",
+    "blitz.statusBar.Alignment.description": "Status bar item's alignment.",
+    "statusBar.alignment.none": "Not show.",
+    "statusBar.alignment.left": "Show at left side.",
+    "statusBar.alignment.right": "Show at right side."
+}
