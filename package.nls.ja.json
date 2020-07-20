@@ -7,5 +7,8 @@
     "blitz.statusBar.Alignment.description": "ステータスバーアイテムの表示位置",
     "statusBar.alignment.none": "非表示。",
     "statusBar.alignment.left": "左側に表示。",
-    "statusBar.alignment.right": "右側に表示。"
+    "statusBar.alignment.right": "右側に表示。",
+    "Select a setting item.": "設定項目を選んでください。",
+    "Select a setting context.": "設定コンテキストを選んでください。",
+    "Reset": "リセット"
 }

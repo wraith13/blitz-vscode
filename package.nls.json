@@ -7,5 +7,8 @@
     "blitz.statusBar.Alignment.description": "Status bar item's alignment.",
     "statusBar.alignment.none": "Not show.",
     "statusBar.alignment.left": "Show at left side.",
-    "statusBar.alignment.right": "Show at right side."
+    "statusBar.alignment.right": "Show at right side.",
+    "Select a setting item.": "Select a setting item.",
+    "Select a setting context.": "Select a setting context.",
+    "Reset": "Reset"
 }

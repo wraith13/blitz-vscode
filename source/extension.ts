@@ -1521,7 +1521,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         (
             [ makeShowDescriptionMenu({context, entry}), ].concat(contextMenuItemList),
             {
-                placeHolder: "Select a setting context.",
+                placeHolder: locale.map("Select a setting context."),
                 matchOnDescription: true,
             }
         );
@@ -1553,7 +1553,7 @@ async (
     [
         makeShowDescriptionMenu(focus, pointer),
         {
-            label: "$(discard) Reset",
+            label: `$(discard) ${locale.typeableMap("Reset")}`,
             description:
                 [
                     undefined !== getDetailValue(getDefaultValue(focus.entry), pointer.detailId) ? "default": undefined,
@@ -1650,7 +1650,7 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
         const entry = undoBuffer[undoBuffer.length -1];
         result.push
         ({
-            label: `$(debug-step-back) Undo`,
+            label: `$(debug-step-back) ${locale.typeableMap("blitz.undoSetting.title")}`,
             description: makeContextLabel(entry.pointer),
             detail: `${makeSettingLabel(entry.pointer)} : ${toStringForce(entry.newValue)} $(arrow-right) ${toStringForce(entry.oldValue)}`,
             command: async () => await UndoConfiguration(),
@@ -1661,7 +1661,7 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
         const entry = redoBuffer[redoBuffer.length -1];
         result.push
         ({
-            label: `$(debug-step-over) Redo`,
+            label: `$(debug-step-over) ${locale.typeableMap("blitz.redoSetting.title")}`,
             description: makeContextLabel(entry.pointer),
             detail: `${makeSettingLabel(entry.pointer)} : ${toStringForce(entry.oldValue)} $(arrow-right) ${toStringForce(entry.newValue)}`,
             command: async () => await RedoConfiguration(),
@@ -1750,19 +1750,17 @@ export const editSettings = async (context: CommandContext) =>
             )
         ),
         {
-            placeHolder: locale.string("Select a setting item."),
+            placeHolder: locale.map("Select a setting item."),
             matchOnDescription: true,
         }
     );
 };
 const alignmentObject = Object.freeze
-(
-    {
-        "none": undefined,
-        "left": vscode.StatusBarAlignment.Left,
-        "right": vscode.StatusBarAlignment.Right,
-    }
-);
+({
+    "none": undefined,
+    "left": vscode.StatusBarAlignment.Left,
+    "right": vscode.StatusBarAlignment.Right,
+});
 export const statusBarAlignment = configRoot.makeMapEntry("blitz.statusBar.Alignment", alignmentObject);
 export const statusBarLabel = configRoot.makeEntry<string>("blitz.statusBar.Label");
 const createStatusBarItem =
@@ -1797,7 +1795,7 @@ export const makeStatusBarItem = (alignment: vscode.StatusBarAlignment) => creat
     alignment,
     //text: statusBarLabel.get(""),
     command: `blitz.editSetting`,
-    tooltip: `Blitz: Edit Setting`
+    tooltip: locale.map("blitz.editSetting.title"),
 });
 const leftStatusBarItem = makeStatusBarItem(vscode.StatusBarAlignment.Left);
 const rightStatusBarItem = makeStatusBarItem(vscode.StatusBarAlignment.Right);
