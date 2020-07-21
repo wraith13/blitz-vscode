@@ -10,5 +10,10 @@
     "statusBar.alignment.right": "右側に表示。",
     "Select a setting item.": "設定項目を選んでください。",
     "Select a setting context.": "設定コンテキストを選んでください。",
-    "Reset": "リセット"
+    "Show Full Description": "完全な説明を表示",
+    "Reset": "リセット",
+    "Cancel": "キャンセル",
+    "Edit this setting item...": "この設定項目を編集...",
+    "Edit other setting item...": "別の設定項目を選択...",
+    "(This setting item has no description.)": "(この設定項目には説明がありません。)"
 }

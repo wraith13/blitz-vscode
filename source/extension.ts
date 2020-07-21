@@ -1299,7 +1299,7 @@ export const makeEditSettingDescriptionDetail = (_entry: SettingsEntry, _detailI
     + JSON.stringify(value);
 export const makeFullDescription = (entry: SettingsEntry) =>
 {
-    let description = entry.description ?? markdownToPlaintext(entry.markdownDescription) ?? "(This setting item has no description)";
+    let description = entry.description ?? markdownToPlaintext(entry.markdownDescription) ?? locale.map("(This setting item has no description.)");
     const enumDescriptions = (entry.enumDescriptions ?? entry.markdownEnumDescriptions?.map(markdownToPlaintext));
     if (entry.enum && 0 < entry.enum.length && enumDescriptions && 0 < enumDescriptions.length)
     {
@@ -1319,12 +1319,12 @@ const makeShowDescriptionMenu =
     pointer?: SettingsPointer
 ): CommandMenuItem =>
 ({
-    label: `$(comment) Show Full Description`,
+    label: `$(comment) ${locale.map("Show Full Description")}`,
     description: undefined === pointer ? focus.entry.id: makeSettingIdLabel(pointer),
     command: async () =>
     {
-        const editThisSettingItem = "Edit this setting item"; //"この設定項目を編集...";
-        const editOtherSetingItem = "Edit other setting item"; //"別の設定項目を選択...";
+        const editThisSettingItem = locale.map("Edit this setting item...");
+        const editOtherSetingItem = locale.map("Edit other setting item...");
         //const cancel = "Cancel"; //"キャンセル";
         switch
         (
