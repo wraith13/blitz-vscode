@@ -1154,7 +1154,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                 const newValue = array.concat([ null ]);
                 result.push
                 ({
-                    label: `$(add) Add null item`,
+                    label: `$(add) ${locale.map("Add null item")}`,
                     preview: async () => await setConfigurationQueue(pointer, newValue),
                     command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                 });
@@ -1163,7 +1163,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
             {
                 result.push
                 ({
-                    label: `$(add) Add string item`,
+                    label: `$(add) ${locale.map("Add string item")}`,
                     command: async () => await editSettingValue
                     (
                         pointer,
@@ -1174,7 +1174,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                             {
                                 if ( ! new RegExp(entry.items?.pattern, "u").test(input))
                                 {
-                                    return entry.items?.errorMessage ?? `This value must match ${entry.items?.pattern}`;
+                                    return entry.items?.errorMessage ?? `This value must match: ${entry.items?.pattern}`;
                                 }
                             }
                             return undefined;
@@ -1191,7 +1191,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                     const newValue = array.filter(_ => true).splice(index, 1);
                     result.push
                     ({
-                        label: `$(remove) Remove "${toStringOrUndefined(item)}"`,
+                        label: `$(remove) ${locale.map("Remove")}: "${toStringOrUndefined(item)}"`,
                         preview: async () => await setConfigurationQueue(pointer, newValue),
                         command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                     });
