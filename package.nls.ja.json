@@ -17,6 +17,11 @@
     "Edit this setting item...": "この設定項目を編集...",
     "Edit other setting item...": "別の設定項目を選択...",
     "(This setting item has no description.)": "(この設定項目には説明がありません。)",
+    "Input string": "文字列を入力",
+    "Input integer": "整数値を入力",
+    "Input number": "数値を入力",
+    "Input array": "配列を入力",
+    "Input object": "オブジェクトを入力",
     "Add null item": "Add null item",
     "Add string item": "Add string item"
 }

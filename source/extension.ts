@@ -976,7 +976,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
     {
         result.push
         ({
-            label: "$(edit) Input string",
+            label: `$(edit) ${locale.typeableMap("Input string")}`,
             command: async () => await editSettingValue
             (
                 pointer,
@@ -1001,7 +1001,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
     {
         result.push
         ({
-            label: "$(edit) Input integer",
+            label: `$(edit) ${locale.typeableMap("Input integer")}`,
             command: async () => await editSettingValue
             (
                 pointer,
@@ -1032,7 +1032,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
     {
         result.push
         ({
-            label: "$(edit) Input number",
+            label: `$(edit) ${locale.typeableMap("Input number")}`,
             command: async () => await editSettingValue
             (
                 pointer,
@@ -1063,7 +1063,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
     {
         result.push
         ({
-            label: "$(edit) Input array",
+            label: `$(edit) ${locale.typeableMap("Input array")}`,
             command: async () => await editSettingValue
             (
                 pointer,
@@ -1097,7 +1097,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
     {
         result.push
         ({
-            label: "$(edit) Input object",
+            label: `$(edit) ${locale.typeableMap("Input object")}`,
             command: async () => await editSettingValue
             (
                 pointer,

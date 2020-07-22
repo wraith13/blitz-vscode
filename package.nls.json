@@ -17,6 +17,11 @@
     "Edit this setting item...": "Edit this setting item...",
     "Edit other setting item...": "Edit other setting item...",
     "(This setting item has no description.)": "(This setting item has no description.)",
+    "Input string": "Input string",
+    "Input integer": "Input integer",
+    "Input number": "Input number",
+    "Input array": "Input array",
+    "Input object": "Input object",
     "Add null item": "Add null item",
     "Add string item": "Add string item"
 }
