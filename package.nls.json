@@ -23,5 +23,17 @@
     "Input array": "Input array",
     "Input object": "Input object",
     "Add null item": "Add null item",
-    "Add string item": "Add string item"
+    "Add string item": "Add string item",
+    "This value must match that regular expression.": "This value must match that regular expression.",
+    "Invalid integer.": "Invalid integer.",
+    "Invalid number.": "Invalid number.",
+    "Invalid array.": "Invalid array.",
+    "Invalid object.": "Invalid object.",
+    "Minimum": "Minimum",
+    "Maximum": "Maximum",
+    "Global": "Global",
+    "Workspace": "Workspace",
+    "WorkspaceFolder": "Folder",
+    "UNKNOWN": "UNKNOWN",
+    "language": "language"
 }

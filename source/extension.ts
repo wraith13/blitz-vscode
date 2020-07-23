@@ -991,7 +991,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                     {
                         if ( ! new RegExp(entry.pattern, "u").test(input))
                         {
-                            return entry.errorMessage ?? `This value must match ${entry.pattern}`;
+                            return entry.errorMessage ?? `${locale.map("This value must match that regular expression.")}:${entry.pattern}`;
                         }
                     }
                     return undefined;
@@ -1015,15 +1015,15 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                     const value = parseInt(input);
                     if (isNaN(value) || value !== parseFloat(input))
                     {
-                        return "invalid integer";
+                        return locale.map("Invalid integer.");
                     }
                     if (undefined !== entry.minimum && value < entry.minimum)
                     {
-                        return `minimum: ${entry.minimum}`;
+                        return `${locale.map("Minimum")}: ${entry.minimum}`;
                     }
                     if (undefined !== entry.maximum && entry.maximum < value)
                     {
-                        return `maximum: ${entry.maximum}`;
+                        return `${locale.map("Maximum")}: ${entry.maximum}`;
                     }
                     return undefined;
                 },
@@ -1046,15 +1046,15 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                     const value = parseFloat(input);
                     if (isNaN(value))
                     {
-                        return "invalid number";
+                        return locale.map("Invalid number.");
                     }
                     if (undefined !== entry.minimum && value < entry.minimum)
                     {
-                        return `minimum: ${entry.minimum}`;
+                        return `${locale.map("Minimum")}: ${entry.minimum}`;
                     }
                     if (undefined !== entry.maximum && entry.maximum < value)
                     {
-                        return `maximum: ${entry.maximum}`;
+                        return `${locale.map("Maximum")}: ${entry.maximum}`;
                     }
                     return undefined;
                 },
@@ -1079,16 +1079,16 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                         const value = JSON.parse(input);
                         if ("object" !== typeof value)
                         {
-                            return "invalid array";
+                            return locale.map("Invalid array.");
                         }
                         if ( ! Array.isArray(value))
                         {
-                            return "invalid array";
+                            return locale.map("Invalid array.");
                         }
                     }
                     catch
                     {
-                        return "invalid array";
+                        return locale.map("Invalid array.");
                     }
                     return undefined;
                 },
@@ -1113,16 +1113,16 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
                         const value = JSON.parse(input);
                         if ("object" !== typeof value)
                         {
-                            return "invalid object";
+                            return locale.map("Invalid object.");
                         }
                         if (Array.isArray(value))
                         {
-                            return "invalid object";
+                            return locale.map("Invalid object.");
                         }
                     }
                     catch
                     {
-                        return "invalid object";
+                        return locale.map("Invalid object.");
                     }
                     return undefined;
                 },
@@ -1178,7 +1178,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                             {
                                 if ( ! new RegExp(entry.items?.pattern, "u").test(input))
                                 {
-                                    return entry.items?.errorMessage ?? `This value must match: ${entry.items?.pattern}`;
+                                    return entry.items?.errorMessage ?? `${locale.map("This value must match that regular expression.")}:${entry.items?.pattern}`;
                                 }
                             }
                             return undefined;
@@ -1358,16 +1358,17 @@ export const makeContextLabel = (pointer: SettingsPointer) =>
     const languageId = (<{ uri: vscode.Uri | undefined, languageId: string, }>(<SettingsPointer>pointer).scope)?.languageId;
     if (languageId)
     {
+        vscode.languages.getLanguages
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
-            return `Global[lang:${languageId}]`;
+            return `${locale.map("Global")}[${locale.map("language")}:${languageId}]`;
         case vscode.ConfigurationTarget.Workspace:
-            return `Workspace[lang:${languageId}]`;
+            return `${locale.map("Workspace")}[${locale.map("language")}:${languageId}]`;
         case vscode.ConfigurationTarget.WorkspaceFolder:
-            return `WorkspaceFolder[lang:${languageId}]`;
+            return `${locale.map("WorkspaceFolder")}[${locale.map("language")}:${languageId}]`;
         default:
-            return `UNKNOWN[lang:${languageId}]`;
+            return `${locale.map("UNKNOWN")}[${locale.map("language")}:${languageId}]`;
         }
     }
     else
@@ -1375,13 +1376,13 @@ export const makeContextLabel = (pointer: SettingsPointer) =>
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
-            return `Global`;
+            return locale.map("Global");
         case vscode.ConfigurationTarget.Workspace:
-            return `Workspace`;
+            return locale.map("Workspace");
         case vscode.ConfigurationTarget.WorkspaceFolder:
-            return `WorkspaceFolder`;
+            return locale.map("WorkspaceFolder");
         default:
-            return `UNKNOWN`;
+            return locale.map("UNKNOWN");
         }
     }
 };

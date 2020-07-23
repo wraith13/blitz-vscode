@@ -23,5 +23,17 @@
     "Input array": "配列を入力",
     "Input object": "オブジェクトを入力",
     "Add null item": "Add null item",
-    "Add string item": "Add string item"
+    "Add string item": "Add string item",
+    "This value must match that regular expression.": "この値はこの正規表現にマッチする必要があります。",
+    "Invalid integer.": "不正な整数値です。",
+    "Invalid number.": "不正な数値です。",
+    "Invalid array.": "不正な配列です。",
+    "Invalid object.": "不正なオブジェクトです。",
+    "Minimum": "最小値",
+    "Maximum": "最大値",
+    "Global": "グローバル",
+    "Workspace": "ワークスペース",
+    "WorkspaceFolder": "フォルダー",
+    "UNKNOWN": "不明",
+    "language": "language"
 }
