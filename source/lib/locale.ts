@@ -10,9 +10,12 @@ export class Locale<LocaleEntryType extends LocaleEntry>
     //type KeyType = keyof typeof localeEn;
     localeTableKey = <string>JSON.parse(<string>process.env.VSCODE_NLS_CONFIG).locale;
     localeTable = Object.assign(JSON.parse(JSON.stringify(this.basicLocale)), (this.locales[this.localeTableKey] ?? { }));
-    isTypealbeLocale =
+    public isTypealbeLocale =
     [
+        "zh-CN",
+        "zh-TW",
         "ja",
+        "ko",
     ].indexOf(this.localeTableKey) < 0;
     public string = (key : string) : string => this.localeTable[key] || key;
     public map = (key : keyof LocaleEntryType & string) : string => this.string(key);
