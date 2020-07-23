@@ -72,7 +72,8 @@ interface SettingsEntry extends PackageJsonConfigurationProperty
 {
     id: string;
 };
-const makeSettingsEntry = (id: string, property: PackageJsonConfigurationProperty): SettingsEntry => Object.assign({ id, }, property);
+const makeSettingsEntry = (id: string, property: PackageJsonConfigurationProperty): SettingsEntry =>
+    Object.assign({ id, }, property);
 interface SchemasSettingsDefault
 {
     properties: { [key: string]: PackageJsonConfigurationProperty };
@@ -133,7 +134,12 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
             const sureRoot = root ?? { };
             if (1 < detailId.length)
             {
-                sureRoot[detailId[0]] = setDetailValue(sureRoot[detailId[0]] ?? { }, detailId.filter((_i, ix) => 0 < ix), value);
+                sureRoot[detailId[0]] = setDetailValue
+                (
+                    sureRoot[detailId[0]] ?? { },
+                    detailId.filter((_i, ix) => 0 < ix),
+                    value
+                );
             }
             else
             {
@@ -149,7 +155,12 @@ const setDetailValue = (root: any, detailId: string[], value: unknown) =>
                 {
                     if (1 < detailId.length)
                     {
-                        setDetailValue(root[detailId[0]], detailId.filter((_i, ix) => 0 < ix), value);
+                        setDetailValue
+                        (
+                            root[detailId[0]],
+                            detailId.filter((_i, ix) => 0 < ix),
+                            value
+                        );
                         if (Object.keys(root[detailId[0]]).length <= 0)
                         {
                             delete root[detailId[0]];
@@ -253,7 +264,8 @@ const recursiveResolveReference = async <T extends { "$ref"?: string }>(context:
     return current;
 };
 */
-const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> => <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/default");
+const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> =>
+    <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/default");
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
     when?: (menus: CommandMenuItem[]) => boolean;
@@ -661,20 +673,12 @@ export const RedoConfiguration = async () =>
         await onDidUpdateUndoBuffer();
     }
 };
+export const setContext = async (key: string, value: any) =>
+    await vscode.commands.executeCommand('setContext', key, value);
 export const onDidUpdateUndoBuffer = async () =>
 {
-    await vscode.commands.executeCommand
-    (
-        'setContext',
-        'isUndosableBlitz',
-        0 < undoBuffer.length
-    );
-    await vscode.commands.executeCommand
-    (
-        'setContext',
-        'isRedosableBlitz',
-        0 < redoBuffer.length
-    );
+    await setContext('isUndosableBlitz', 0 < undoBuffer.length);
+    await setContext('isRedosableBlitz', 0 < redoBuffer.length);
 };
 export const getProperties = (entry: SettingsEntry) =>
 {
@@ -1405,14 +1409,34 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
         })
     );
     const workspaceOverridable = 0 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
-        (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope));
+        (
+            undefined === entry.scope ||
+            (
+                ConfigurationScope.APPLICATION !== entry.scope &&
+                ConfigurationScope.MACHINE !== entry.scope
+            )
+        );
     const workspaceFolderOverridable = 1 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
-        (undefined === entry.scope || (ConfigurationScope.APPLICATION !== entry.scope && ConfigurationScope.MACHINE !== entry.scope && ConfigurationScope.WINDOW !== entry.scope));
+        (
+            undefined === entry.scope ||
+            (
+                ConfigurationScope.APPLICATION !== entry.scope &&
+                ConfigurationScope.MACHINE !== entry.scope &&
+                ConfigurationScope.WINDOW !== entry.scope
+            )
+        );
     const languageOverridable =
         ! isLanguageOverrideEntry(entry) &&
         languageId &&
-        (entry.overridable || undefined === entry.scope || ConfigurationScope.LANGUAGE_OVERRIDABLE === entry.scope);
-    const makeDescription = (defaultValue: any, value: any) => undefined !== value && value === defaultValue ? "default": undefined;
+        (
+            entry.overridable ||
+            undefined === entry.scope ||
+            ConfigurationScope.LANGUAGE_OVERRIDABLE === entry.scope
+        );
+    const makeDescription = (defaultValue: any, value: any) =>
+        (undefined !== value && value === defaultValue) ?
+            "default":
+            undefined;
     if (workspaceOverridable || workspaceFolderOverridable || languageOverridable)
     {
         contextMenuItemList.push
@@ -1475,7 +1499,12 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                         overrideInLanguage: true,
                         entry
                     },
-                    toStringForce((undefined !== values?.globalLanguageValue) ? values?.globalLanguageValue: values?.defaultLanguageValue),
+                    toStringForce
+                    (
+                        (undefined !== values?.globalLanguageValue) ?
+                            values?.globalLanguageValue:
+                            values?.defaultLanguageValue
+                    ),
                     makeDescription(values?.defaultLanguageValue, values?.globalLanguageValue)
                 )
             );
