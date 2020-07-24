@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
-import * as Locale from "./lib/locale";
-import * as Config from "./lib/config";
+import * as vscel from '@wraith13/vscel';
 import packageJson from "../package.json";
 import localeEn from "../package.nls.json";
 import localeJa from "../package.nls.ja.json";
-const locale = Locale.make(localeEn, { "ja": localeJa });
-const configRoot = Config.makeRoot(packageJson);
+const locale = vscel.locale.make(localeEn, { "ja": localeJa });
+const configRoot = vscel.config.makeRoot(packageJson);
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
 // copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110

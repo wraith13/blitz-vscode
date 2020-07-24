@@ -94,6 +94,9 @@
         "pretest": "npm run compile && npm run lint",
         "test": "node ./out/test/runTest.js"
     },
+    "dependencies": {
+        "@wraith13/vscel": "^0.0.1"
+    },
     "devDependencies": {
         "@types/vscode": "^1.45.0",
         "@types/glob": "^7.1.1",
