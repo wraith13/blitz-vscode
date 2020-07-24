@@ -1357,7 +1357,6 @@ export const makeContextLabel = (pointer: SettingsPointer) =>
     const languageId = (<{ uri: vscode.Uri | undefined, languageId: string, }>(<SettingsPointer>pointer).scope)?.languageId;
     if (languageId)
     {
-        vscode.languages.getLanguages
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
