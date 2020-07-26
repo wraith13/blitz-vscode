@@ -54,10 +54,17 @@ interface PackageJsonConfiguration extends PackageJsonConfigurationBase
     type?: ConfigurationType;
     title: string;
 }
+interface PackageJsonLanguage
+{
+    id: string;
+    extensions?: string[];
+    aliases?: string[];
+};
 interface PackageJsonContributes
 {
-    configuration: PackageJsonConfiguration;
+    configuration?: PackageJsonConfiguration;
     configurationDefaults: object;
+    languages?: PackageJsonLanguage[]
 }
 interface PackageJson
 {
@@ -361,7 +368,7 @@ export const markdownToPlaintext = (markdown: string | undefined) =>
         undefined:
         markdown.replace(/`#([a-zA-Z_0-9\-\.]+)#`/mg, "`$1`");
 export const extensionSettings = (): SettingsEntry[] => vscode.extensions.all
-    .map(i => (<PackageJson>i?.packageJSON)?.contributes?.configuration)
+    .map(i => <PackageJsonConfiguration>(<PackageJson>i?.packageJSON)?.contributes?.configuration)
     .filter(i => i?.properties)
     .map
     (
@@ -1267,21 +1274,29 @@ const makeShowDescriptionMenu =
         }
     },
 });
+export const getLanguageName = (languageId: string) => vscode.extensions.all
+    .map(i => <PackageJsonLanguage[]>(i.packageJSON as PackageJson)?.contributes?.languages)
+    .filter(i => i)
+    .reduce((a, b) => a.concat(b), [])
+    .filter(i => i.id === languageId && 0 < (i.aliases?.length ?? 0))
+    .map(i => i?.aliases?.[0])?.[0] ?? languageId;
 export const makeContextLabel = (pointer: SettingsPointer) =>
 {
     const languageId = (<{ uri: vscode.Uri | undefined, languageId: string, }>(<SettingsPointer>pointer).scope)?.languageId;
     if (languageId)
     {
+        const languageName = getLanguageName(languageId);
+        const languageLabel = languageName === languageId ? languageId: `${languageName} ( ${languageId} )`;
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
-            return `${locale.map("Global")}[${locale.map("language")}:${languageId}]`;
+            return `${locale.typeableMap("Global")}[${locale.map("language")}:${languageLabel}]`;
         case vscode.ConfigurationTarget.Workspace:
-            return `${locale.map("Workspace")}[${locale.map("language")}:${languageId}]`;
+            return `${locale.typeableMap("Workspace")}[${locale.map("language")}:${languageLabel}]`;
         case vscode.ConfigurationTarget.WorkspaceFolder:
-            return `${locale.map("WorkspaceFolder")}[${locale.map("language")}:${languageId}]`;
+            return `${locale.typeableMap("WorkspaceFolder")}[${locale.map("language")}:${languageLabel}]`;
         default:
-            return `${locale.map("UNKNOWN")}[${locale.map("language")}:${languageId}]`;
+            return `${locale.typeableMap("UNKNOWN")}[${locale.map("language")}:${languageLabel}]`;
         }
     }
     else
@@ -1289,13 +1304,13 @@ export const makeContextLabel = (pointer: SettingsPointer) =>
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
-            return locale.map("Global");
+            return locale.typeableMap("Global");
         case vscode.ConfigurationTarget.Workspace:
-            return locale.map("Workspace");
+            return locale.typeableMap("Workspace");
         case vscode.ConfigurationTarget.WorkspaceFolder:
-            return locale.map("WorkspaceFolder");
+            return locale.typeableMap("WorkspaceFolder");
         default:
-            return locale.map("UNKNOWN");
+            return locale.typeableMap("UNKNOWN");
         }
     }
 };
@@ -1303,6 +1318,7 @@ export const makeContextMenuItem = (focus: SettingsFocus, value: string, descrip
 ({
     label: `$(symbol-namespace) ${makeContextLabel(makePointer(focus))}: ${value}`,
     description,
+    detail: (makeConfigurationScopeUri(focus.configurationTarget))?.toString(),
     command: async () => await editSettingItem(focus),
 });
 const languageOverrideRegExp = /^\[(.*)\]$/;
@@ -1462,7 +1478,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     {
         await showQuickPick
         (
-            [ makeShowDescriptionMenu({context, entry}), ].concat(contextMenuItemList),
+            contextMenuItemList,
             {
                 placeHolder: locale.map("Select a setting context."),
                 matchOnDescription: true,
