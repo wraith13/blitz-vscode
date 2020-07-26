@@ -821,75 +821,14 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
     };
     list.sort
     (
-        (a, b) =>
-        {
-            const aTypeIndex = typeIndexOf(a.value);
-            const bTypeIndex = typeIndexOf(b.value);
-            if (aTypeIndex < bTypeIndex)
-            {
-                return -1;
-            }
-            if (aTypeIndex > bTypeIndex)
-            {
-                return 1;
-            }
-            if (typeof a.value === typeof b.value)
-            {
-                if (entry.enum)
-                {
-                    const aEnumIndex = entry.enum.indexOf(a.value);
-                    const bEnumIndex = entry.enum.indexOf(b.value);
-                    if (aEnumIndex < bEnumIndex)
-                    {
-                        return -1;
-                    }
-                    if (aEnumIndex > bEnumIndex)
-                    {
-                        return 1;
-                    }
-                }
-                if ("number" === typeof a.value && "number" === typeof b.value)
-                {
-                    if (a.value < b.value)
-                    {
-                        return -1;
-                    }
-                    if (a.value > b.value)
-                    {
-                        return 1;
-                    }
-                }
-                if ("string" === typeof a.value && "string" === typeof b.value)
-                {
-                    if (a.value < b.value)
-                    {
-                        return -1;
-                    }
-                    if (a.value > b.value)
-                    {
-                        return 1;
-                    }
-                }
-                if ("object" === typeof a.value && "object" === typeof b.value)
-                {
-                    const aJson = JSON.stringify(a.value);
-                    const bJson = JSON.stringify(b.value);
-                    if (aJson < bJson)
-                    {
-                        return -1;
-                    }
-                    if (aJson > bJson)
-                    {
-                        return 1;
-                    }
-                }
-            }
-            else
-            {
-                console.log(`Uncomparable values: ${JSON.stringify({ a, b })}`);
-            }
-            return 0;
-        }
+        vscel.comparer.make
+        ([
+            a => typeIndexOf(a.value),
+            { condition: () => 0 < (entry.enum?.length ?? 0), getter: a => entry.enum?.indexOf(a.value), },
+            { condition: { getter: a => a.value, type: "number", }, getter: a => a.value, },
+            { condition: { getter: a => a.value, type: "string", }, getter: a => a.value, },
+            { condition: { getter: a => a.value, type: "object", }, getter: a => JSON.stringify(a.value), },
+        ])
     );
     return list.map
     (
@@ -1239,36 +1178,12 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
             .concat(Object.keys(properties).filter(i => recentlies.indexOf(i) < 0))
             .sort
             (
-                (a, b) =>
-                {
-                    const aValue = oldValue?.[a];
-                    const bValue = oldValue?.[b];
-                    if (undefined !== aValue && undefined === bValue)
-                    {
-                        return -1;
-                    }
-                    if (undefined === aValue && undefined !== bValue)
-                    {
-                        return 1;
-                    }
-                    if ( ! a.startsWith("[") && b.startsWith("["))
-                    {
-                        return -1;
-                    }
-                    if (a.startsWith("[") && ! b.startsWith("["))
-                    {
-                        return 1;
-                    }
-                    if (a < b)
-                    {
-                        return -1;
-                    }
-                    if (a > b)
-                    {
-                        return 1;
-                    }
-                    return 0;
-                }
+                vscel.comparer.make
+                ([
+                    a => undefined === oldValue?.[a] ? 1: 0,
+                    a => a.startsWith("[") ? 0: 1,
+                    { raw: vscel.comparer.basic, }
+                ])
             )
             .forEach
             (
@@ -1732,39 +1647,11 @@ export const editSettings = async (context: CommandContext) =>
             )
             .sort
             (
-                (a, b) =>
-                {
-                    const aRecentlyIndex = recentlies.indexOf(a.entry.id);
-                    const bRecentlyIndex = recentlies.indexOf(b.entry.id);
-                    if (0 <= aRecentlyIndex && bRecentlyIndex < 0)
-                    {
-                        return -1;
-                    }
-                    if (aRecentlyIndex < 0 && 0 <= bRecentlyIndex)
-                    {
-                        return 1;
-                    }
-                    if (0 <= aRecentlyIndex && 0 <= bRecentlyIndex)
-                    {
-                        if (aRecentlyIndex < bRecentlyIndex)
-                        {
-                            return -1;
-                        }
-                        if (aRecentlyIndex > bRecentlyIndex)
-                        {
-                            return 1;
-                        }
-                    }
-                    if (undefined !== a.value && undefined === b.value)
-                    {
-                        return -1;
-                    }
-                    if (undefined === a.value && undefined !== b.value)
-                    {
-                        return 1;
-                    }
-                    return 0;
-                }
+                vscel.comparer.make
+                ([
+                    a => recentlies.concat(a.entry.id).indexOf(a.entry.id),
+                    a => undefined === a.value ? 1: 0
+                ])
             )
             .map
             (
