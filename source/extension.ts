@@ -634,6 +634,7 @@ const setRecentlies = async (entry: UndoEntry) =>
 export const clearRecentlies = async () =>
 {
     await extensionContext.globalState.update(recentlyEntriesStrageId, undefined);
+    await extensionContext.globalState.update(recentlyDetailsStrageId, undefined);
     await extensionContext.globalState.update(recentlyValuesStrageId, undefined);
 };
 const undoBuffer: UndoEntry[] = [];
@@ -1290,13 +1291,13 @@ export const makeContextLabel = (pointer: SettingsPointer) =>
         switch(pointer.configurationTarget)
         {
         case vscode.ConfigurationTarget.Global:
-            return `${locale.typeableMap("Global")}[${locale.map("language")}:${languageLabel}]`;
+            return `${locale.typeableMap("Global")} [ ${locale.typeableMap("language")}: ${languageLabel} ]`;
         case vscode.ConfigurationTarget.Workspace:
-            return `${locale.typeableMap("Workspace")}[${locale.map("language")}:${languageLabel}]`;
+            return `${locale.typeableMap("Workspace")} [ ${locale.typeableMap("language")}: ${languageLabel} ]`;
         case vscode.ConfigurationTarget.WorkspaceFolder:
-            return `${locale.typeableMap("WorkspaceFolder")}[${locale.map("language")}:${languageLabel}]`;
+            return `${locale.typeableMap("WorkspaceFolder")} [ ${locale.typeableMap("language")}: ${languageLabel} ]`;
         default:
-            return `${locale.typeableMap("UNKNOWN")}[${locale.map("language")}:${languageLabel}]`;
+            return `${locale.typeableMap("UNKNOWN")} [ ${locale.typeableMap("language")}: ${languageLabel} ]`;
         }
     }
     else
@@ -1318,7 +1319,7 @@ export const makeContextMenuItem = (focus: SettingsFocus, value: string, descrip
 ({
     label: `$(symbol-namespace) ${makeContextLabel(makePointer(focus))}: ${value}`,
     description,
-    detail: (makeConfigurationScopeUri(focus.configurationTarget))?.toString(),
+    detail: (makeConfigurationScopeUri(focus.configurationTarget))?.fsPath,
     command: async () => await editSettingItem(focus),
 });
 const languageOverrideRegExp = /^\[(.*)\]$/;
@@ -1338,7 +1339,8 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             entry
         })
     );
-    const workspaceOverridable = 0 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
+    const workspaceUri = makeConfigurationScopeUri(vscode.ConfigurationTarget.Workspace);
+    const workspaceOverridable = undefined !== workspaceUri &&
         (
             undefined === entry.scope ||
             (
@@ -1346,7 +1348,9 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                 ConfigurationScope.MACHINE !== entry.scope
             )
         );
-    const workspaceFolderOverridable = 1 < (vscode.workspace.workspaceFolders?.length ?? 0) &&
+    const workspaceFolderUri = makeConfigurationScopeUri(vscode.ConfigurationTarget.WorkspaceFolder);
+    const workspaceFolderOverridable = undefined !== workspaceFolderUri &&
+        workspaceUri !== workspaceFolderUri &&
         (
             undefined === entry.scope ||
             (
@@ -1482,6 +1486,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
             {
                 placeHolder: locale.map("Select a setting context."),
                 matchOnDescription: true,
+                matchOnDetail: true,
             }
         );
     }
