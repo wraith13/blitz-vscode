@@ -297,7 +297,16 @@ export const showQuickPick = async <T extends CommandMenuItem>
         if (method && lastPreview !== method)
         {
             lastPreview = method;
-            await method();
+            try
+            {
+                await method();
+            }
+            catch
+            {
+                //  適用のキャンセルにより、大量の `rejected promise not handled` でログを汚すことになってしまうので握り潰す。
+                //  握り潰す代わりになにかログを吐いてしまうと結局同じ事だし・・・
+                //  尚、ここでエラーになったからと言って、 return false しちゃうのはロジック的にダメ
+            }
             return true;
         }
         return false;
@@ -1584,6 +1593,8 @@ export const makeConfigurationScope = (context: SettingsContext): vscode.Configu
     return makeConfigurationScopeUri(context.configurationTarget);
 };
 export const getLanguageId = () => vscode.window.activeTextEditor?.document.languageId;
+/*
+for debug only
 export const makeDisplayType = (entry: SettingsEntry) =>
 {
     let result = "string" === typeof entry.type ?
@@ -1595,6 +1606,7 @@ export const makeDisplayType = (entry: SettingsEntry) =>
     }
     return result;
 };
+*/
 export const makeEditSettingDescription = (entry: SettingsEntry, value: any) =>
     (
         JSON.stringify(getDefaultValue(entry)) === JSON.stringify(value) ?
@@ -1602,8 +1614,8 @@ export const makeEditSettingDescription = (entry: SettingsEntry, value: any) =>
             "* "
     )
     + entry.id
-    + ": "
-    + makeDisplayType(entry)
+    //+ ": "
+    //+ makeDisplayType(entry)
     + " = "
     + JSON.stringify(value);
 export const makeUndoMenu = (): CommandMenuItem[] =>
