@@ -8,6 +8,19 @@ const configRoot = vscel.config.makeRoot(packageJson);
 const IsDebugMode = false;
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
+interface InspectResultType<valueT>
+{
+    key: string,
+    defaultValue?: valueT,
+    globalValue?: valueT,
+    workspaceValue?: valueT,
+    workspaceFolderValue?: valueT,
+    defaultLanguageValue?: valueT,
+    globalLanguageValue?: valueT,
+    workspaceLanguageValue?: valueT,
+    workspaceFolderLanguageValue?: valueT,
+    languageIds?: string[],
+};
 // copy from https://github.com/microsoft/vscode/blob/b67444e6bb97998eeb160e08f9778a05b5054ff6/src/vs/platform/configuration/common/configurationRegistry.ts#L85-L110
 export const enum ConfigurationScope
 {
@@ -438,25 +451,13 @@ export const inspectConfiguration = <T>(pointer: SettingsPointer) => vscode.work
     makeConfigurationKey(pointer.id)
 );
 export const getValueFromInspectResult =
-<T>(
+<valueT>(
     context:
     {
         configurationTarget: vscode.ConfigurationTarget,
         overrideInLanguage: boolean,
     },
-    inspect:
-    {
-        key: string,
-        defaultValue?: T,
-        globalValue?: T,
-        workspaceValue?: T,
-        workspaceFolderValue?: T,
-        defaultLanguageValue?: T,
-        globalLanguageValue?: T,
-        workspaceLanguageValue?: T,
-        workspaceFolderLanguageValue?: T,
-        languageIds?: string[],
-    } | undefined
+    inspect: InspectResultType<valueT> | undefined
 ) =>
 {
     if ( ! context.overrideInLanguage)
@@ -1555,6 +1556,7 @@ async (
     ),
     {
         placeHolder: `${makeSettingLabel(pointer)} ( ${makeSettingIdLabel(pointer)} ):`,
+        matchOnDescription: true,
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
     }
@@ -1675,7 +1677,18 @@ export const editSettings = async (context: CommandContext) =>
                 ({
                     entry: i.entry,
                     pointer: i.pointer,
-                    value: getConfigurationProjectionValue(i.pointer),
+                    inspectResult: inspectConfiguration(i.pointer),
+                })
+            )
+            .map
+            (
+                i =>
+                ({
+                    entry: i.entry,
+                    pointer: i.pointer,
+                    value: getProjectionValueFromInspectResult(i.inspectResult),
+                    hasValue: hasValueInInspectResult(i.inspectResult),
+                    defaultValue: i.inspectResult?.defaultLanguageValue ?? i.inspectResult?.defaultValue,
                 })
             )
             .sort
@@ -1683,7 +1696,7 @@ export const editSettings = async (context: CommandContext) =>
                 vscel.comparer.make
                 ([
                     a => recentlies.concat(a.entry.id).indexOf(a.entry.id),
-                    a => undefined === a.value ? 1: 0
+                    a => a.hasValue ? 0: 1
                 ])
             )
             .map
@@ -1691,7 +1704,7 @@ export const editSettings = async (context: CommandContext) =>
                 i =>
                 ({
                     label: `$(settings-gear) ${makeSettingLabel(i.pointer)}`,
-                    description: makeEditSettingDescription(i.entry, i.value),
+                    description: makeEditSettingDescription(i.entry, i.value, i.hasValue),
                     detail: i.entry.description ?? markdownToPlaintext(i.entry.markdownDescription),
                     command: async () => await selectContext(context, await resolveReference(context, i.entry)),
                 })
