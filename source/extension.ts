@@ -361,8 +361,13 @@ export const showQuickPick = async <T extends CommandMenuItem>
     }
     return result;
 };
-export const getDefaultValue = (entry: SettingsEntry) =>
+export const getDefaultValue = (entry: SettingsEntry, pointer: SettingsPointer) =>
 {
+    const defaultValueFromInspectResult =  getDefaultValueFromInspectResult(inspectConfiguration(pointer));
+    if (undefined !== defaultValueFromInspectResult)
+    {
+        return defaultValueFromInspectResult;
+    }
     if (undefined !== entry.default)
     {
         return entry.default;
@@ -486,6 +491,25 @@ export const getValueFromInspectResult =
     }
     return undefined;
 };
+export const hasValueInInspectResult = (inspect: InspectResultType<unknown> | undefined) =>
+    undefined !== inspect?.globalValue ||
+    undefined !== inspect?.workspaceValue ||
+    undefined !== inspect?.workspaceFolderValue ||
+    undefined !== inspect?.globalLanguageValue ||
+    undefined !== inspect?.workspaceLanguageValue ||
+    undefined !== inspect?.workspaceFolderLanguageValue;
+export const getProjectionValueFromInspectResult = <valueT>(inspect: InspectResultType<valueT> | undefined) =>
+    inspect?.workspaceFolderLanguageValue ??
+    inspect?.workspaceLanguageValue ??
+    inspect?.globalLanguageValue ??
+    inspect?.defaultLanguageValue ??
+    inspect?.workspaceFolderValue ??
+    inspect?.workspaceValue ??
+    inspect?.globalValue ??
+    inspect?.defaultValue;
+export const getDefaultValueFromInspectResult = <valueT>(inspect: InspectResultType<valueT> | undefined) =>
+    inspect?.defaultLanguageValue ??
+    inspect?.defaultValue;
 export const getConfigurationProjectionValue = <T>(pointer: SettingsPointer): T | undefined => vscode.workspace.getConfiguration
 (
     makeConfigurationSection(pointer.id),
@@ -814,7 +838,7 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
             )
         );
     }
-    const defaultValue = getDetailValue(getDefaultValue(entry), pointer.detailId);
+    const defaultValue = getDetailValue(getDefaultValue(entry, pointer), pointer.detailId);
     if (undefined !== defaultValue)
     {
         register(defaultValue, "default", undefined, menus => menus.filter(i => 0 <= (i.tags?.indexOf("typed object") ?? -1)).length <= 0);
@@ -939,7 +963,7 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
 {
     const entry = focus.entry;
     const result: CommandMenuItem[] = [ ];
-    const value = toStringOrUndefined(oldValue ?? getDetailValue(await getDefaultValue(entry), pointer.detailId));
+    const value = toStringOrUndefined(oldValue ?? getDetailValue(getDefaultValue(entry, pointer), pointer.detailId));
     if (undefined === entry.enum && hasType(entry, "string"))
     {
         result.push
@@ -1538,7 +1562,7 @@ async (
             label: `$(discard) ${locale.typeableMap("Reset")}`,
             description:
                 [
-                    undefined !== getDetailValue(getDefaultValue(focus.entry), pointer.detailId) ? "default": undefined,
+                    undefined !== getDetailValue(getDefaultValue(focus.entry, pointer), pointer.detailId) ? "default": undefined,
                     undefined !== oldValue ? "current": undefined,
                 ]
                 .filter(i => 0 < (i?.length ?? 0))
