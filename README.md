@@ -1,12 +1,15 @@
-# blitz for VS Code
+# Blitz for VS Code
 
 [![Visual Studio Marketplace](https://vsmarketplacebadge.apphb.com/version/wraith13.blitz.svg) ![installs](https://vsmarketplacebadge.apphb.com/installs/wraith13.blitz.svg) ![rating](https://vsmarketplacebadge.apphb.com/rating/wraith13.blitz.svg)](https://marketplace.visualstudio.com/items?itemName=wraith13.blitz)
 
-Smart search your codes.
+Quickly config for VS Code.
 
 ## Features
 
-Blitz scans your code and enumerates all tokens and provides access to them.
+- Quick pick based setting
+- Setting preview
+- Setting undo/redo
+- Reuse recently setting values
 
 <!-- ![screenshot](images/screenshot.png) -->
 
@@ -28,13 +31,16 @@ Enjoy!
 
 ## Commands
 
-* `Blitz: Edit Settings` : Access to tokens in your codes with menu.
+* `Blitz: Edit Settings` : Edit VS Code's settings.
+* `Blitz: Undo Setting` : Undo VS Code's settings.
+* `Blitz: Redo Setting` : Redo VS Code's settings.
+* `Blitz: Clear Setting History` : Clear recently information.
 
 ## Extension Settings
 
 This extension contributes the following settings by [`settings.json`](https://code.visualstudio.com/docs/customization/userandworkspace#_creating-user-and-workspace-settings)( Mac: <kbd>Command</kbd>+<kbd>,</kbd>, Windows / Linux: <kbd>File</kbd> -> <kbd>Preferences</kbd> -> <kbd>User Settings</kbd> ):
 
-* `blitz.statusBarAlignment`: Alignment on status bar. Requires a restart to take effect.
+* `blitz.statusBarAlignment`: Alignment on status bar.
 * `blitz.statusBarText`: Status bar's label.
 
 ## Keyboard shortcut Settings
@@ -48,6 +54,9 @@ Command name on `keybindings.json` is diffarent from on Command Pallete. See bel
 |on Command Pallete|on keybindings.json|
 |-|-|
 |`Blitz: Edit Settings`|`blitz.editSettings`|
+|`Blitz: Undo Setting`|`blitz.undoSetting`|
+|`Blitz: Redo Setting`|`blitz.redoSetting`|
+|`Blitz: Clear Setting History`|`blitz.clearHistory`|
 
 ## Release Notes
 
