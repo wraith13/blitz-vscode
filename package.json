@@ -65,7 +65,8 @@
                     "blitz.statusBar.Label": {
                         "type": "string",
                         "default": "$(settings-gear)",
-                        "description": "%blitz.statusBar.Label.description%"
+                        "description": "%blitz.statusBar.Label.description%",
+                        "scope": "window"
                     },
                     "blitz.statusBar.Alignment": {
                         "type": "string",
@@ -80,7 +81,8 @@
                             "%statusBar.alignment.none%",
                             "%statusBar.alignment.left%",
                             "%statusBar.alignment.right%"
-                        ]
+                        ],
+                        "scope": "window"
                     }
                 }
             }
