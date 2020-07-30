@@ -1241,7 +1241,7 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
                 ({
                     label: `$(edit) ${i}`,
                     description: makeEditSettingDescriptionDetail(focus.entry, pointer.detailId.concat(i), oldValue?.[i]),
-                    detail: properties[i].description,
+                    detail: properties[i].description ?? markdownToPlaintext(properties[i].markdownDescription),
                     command: async () => await editSettingItem
                     (
                         makeFocusDetail(focus, makeSettingsEntry(i, await resolveReference(focus.context, properties[i]))),
