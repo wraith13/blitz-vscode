@@ -86,6 +86,13 @@
                     }
                 }
             }
+        ],
+        "keybindings":[
+            {
+                "command": "blitz.editSetting",
+                "key": "shift+ctrl+,",
+                "mac": "shift+cmd+,"
+            }
         ]
     },
     "scripts": {
