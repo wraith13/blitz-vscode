@@ -6,6 +6,7 @@ import localeJa from "../package.nls.ja.json";
 const locale = vscel.locale.make(localeEn, { "ja": localeJa });
 const configRoot = vscel.config.makeRoot(packageJson);
 const IsDebugMode = false;
+const jsonCopy = <objectT>(object: objectT) => <objectT>JSON.parse(JSON.stringify(object));
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
 interface InspectResultType<valueT>
@@ -1200,7 +1201,7 @@ export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, p
     const object = getConfigurationProjectionValue<any>(pointer);
     if ( ! Array.isArray(object))
     {
-        const properties = JSON.parse(JSON.stringify(entry.properties ?? { }));
+        const properties = jsonCopy(entry.properties ?? { });
         if (entry.allOf)
         {
             await Promise.all
