@@ -874,6 +874,7 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
     (
         vscel.comparer.make
         ([
+            { condition: () => 16 <= list.length, getter: a => 0 < a.description.length ? 0: 1, },
             a => typeIndexOf(a.value),
             { condition: () => 0 < (entry.enum?.length ?? 0), getter: a => entry.enum?.indexOf(a.value), },
             { condition: { getter: a => a.value, type: "number", }, getter: a => a.value, },
