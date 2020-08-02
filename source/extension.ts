@@ -5,7 +5,7 @@ import localeEn from "../package.nls.json";
 import localeJa from "../package.nls.ja.json";
 const locale = vscel.locale.make(localeEn, { "ja": localeJa });
 const configRoot = vscel.config.makeRoot(packageJson);
-const IsDebugMode = false;
+export const debug = configRoot.makeEntry("blitz.debug");
 const jsonCopy = <objectT>(object: objectT) => <objectT>JSON.parse(JSON.stringify(object));
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
@@ -312,7 +312,7 @@ export const showQuickPick = async <T extends CommandMenuItem>
         if (method && lastPreview !== method)
         {
             lastPreview = method;
-            if (IsDebugMode)
+            if (debug.get(""))
             {
                 await method();
             }
@@ -727,8 +727,8 @@ export const setContext = async (key: string, value: any) =>
     await vscode.commands.executeCommand('setContext', key, value);
 export const onDidUpdateUndoBuffer = async () =>
 {
-    await setContext('isUndosableBlitz', 0 < undoBuffer.length);
-    await setContext('isRedosableBlitz', 0 < redoBuffer.length);
+    await setContext('isBlitzUndoable', 0 < undoBuffer.length);
+    await setContext('isBlitzRedoable', 0 < redoBuffer.length);
 };
 export const getProperties = (entry: SettingsEntry) =>
 {
@@ -1643,7 +1643,7 @@ export const makeDisplayType = (entry: SettingsEntry) =>
 export const makeEditSettingDescription = (entry: SettingsEntry, value: any, hasValue: boolean) =>
     (hasValue ? "* ": "")
     + entry.id
-    +(IsDebugMode ? `: ${makeDisplayType(entry)}`: "")
+    +(debug.get("") ? `: ${makeDisplayType(entry)}`: "")
     + " = "
     + JSON.stringify(value);
 export const makeUndoMenu = (): CommandMenuItem[] =>
@@ -1806,8 +1806,13 @@ export const updateStatusBarItem = () =>
             }
         }
     );
+export const onDidUpdateConfig = async () =>
+{
+    updateStatusBarItem();
+    await setContext('isBlitzDebugMode', debug.get(""));
+};
 let extensionContext: vscode.ExtensionContext;
-export const activate = (context: vscode.ExtensionContext) =>
+export const activate = async (context: vscode.ExtensionContext) =>
 {
     extensionContext = context;
     context.subscriptions.push
@@ -1836,7 +1841,7 @@ export const activate = (context: vscode.ExtensionContext) =>
         rightStatusBarItem,
         vscode.workspace.onDidChangeConfiguration
         (
-            event =>
+            async (event) =>
             {
                 if
                 (
@@ -1844,15 +1849,16 @@ export const activate = (context: vscode.ExtensionContext) =>
                 )
                 {
                     [
+                        debug,
                         statusBarAlignment,
                         statusBarLabel
                     ]
                     .forEach(i => i.clear());
-                    updateStatusBarItem();
+                    await onDidUpdateConfig();
                 }
             }
         ),
     );
-    updateStatusBarItem();
+    await onDidUpdateConfig();
 };
 export const deactivate = ( ) => { };

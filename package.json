@@ -50,11 +50,15 @@
             "commandPalette": [
                 {
                     "command": "blitz.undoSetting",
-                    "when": "isUndosableBlitz"
+                    "when": "isBlitzUndoable"
                 },
                 {
                     "command": "blitz.redoSetting",
-                    "when": "isRedosableBlitz"
+                    "when": "isBlitzRedoable"
+                },
+                {
+                    "command": "blitz.clearHistory",
+                    "when": "isBlitzDebugMode"
                 }
             ]
         },
@@ -62,6 +66,12 @@
             {
                 "title": "Blitz",
                 "properties": {
+                    "blitz.debug": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "%blitz.debug.description%",
+                        "scope":"window"
+                    },
                     "blitz.statusBar.Label": {
                         "type": "string",
                         "default": "$(settings-gear)",
