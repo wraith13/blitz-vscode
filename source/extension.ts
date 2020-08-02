@@ -1564,8 +1564,8 @@ async (
             label: `$(discard) ${locale.typeableMap("Reset")}`,
             description:
                 [
-                    undefined !== getDetailValue(getDefaultValue(focus.entry, pointer), pointer.detailId) ? "default": undefined,
-                    undefined !== oldValue ? "current": undefined,
+                    //undefined === getDetailValue(getDefaultValue(focus.entry, pointer), pointer.detailId) ? "default": undefined,
+                    undefined === oldValue ? "current": undefined,
                 ]
                 .filter(i => 0 < (i?.length ?? 0))
                 .join(", "),
