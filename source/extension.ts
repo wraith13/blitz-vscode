@@ -1682,6 +1682,7 @@ export const editSettings = async (context: CommandContext) =>
         .concat
         (
             (await aggregateSettings(context))
+            .filter(i => "launch" !== i.id) // コイツだけはいろいろ特殊なので隠蔽する
             .map
             (
                 entry =>
