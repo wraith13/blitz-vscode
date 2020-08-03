@@ -2,9 +2,11 @@
 
 [![Visual Studio Marketplace](https://vsmarketplacebadge.apphb.com/version/wraith13.blitz.svg) ![installs](https://vsmarketplacebadge.apphb.com/installs/wraith13.blitz.svg) ![rating](https://vsmarketplacebadge.apphb.com/rating/wraith13.blitz.svg)](https://marketplace.visualstudio.com/items?itemName=wraith13.blitz)
 
-Quickly config for VS Code.
+Provide a quick and comfortable way to change settings by quick pick based UI.
 
 ## Features
+
+VS Code provides two setting methods: a user-friendly GUI-based setting panel and direct editing of settings.json. Both are great, but they aren't suitable for everyday small configuration changes. This Blitz for VS Code provides a quick and comfortable way to change settings by quick pick based UI.
 
 - Quick pick based setting
 - Setting preview
@@ -21,11 +23,11 @@ Show extension side bar within VS Code(Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<
 
 ### 1. 🚀 Edit settings
 
-Launch Command Palette, Execute `Blitz: Edit Settings` command or click eys icon on status bar. You can edit VS Code settings.
+Launch Command Palette, Execute `Blitz: Edit Settings` command or click eys icon on status bar or keyboard shortcut ( Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd> ). You can edit VS Code settings.
 
 ### 2. 🔧 Next step
 
-You can change [settings](#extension-settings) by `settings.json`. And you can apply [keyboard shortcuts](#keyboard-shortcut-settings) by `keybindings.json`.
+You can change [settings](#extension-settings). And you can edit [keyboard shortcuts](#keyboard-shortcut-settings) by `keybindings.json`.
 
 Enjoy!
 
@@ -34,29 +36,29 @@ Enjoy!
 * `Blitz: Edit Settings` : Edit VS Code's settings.
 * `Blitz: Undo Setting` : Undo VS Code's settings.
 * `Blitz: Redo Setting` : Redo VS Code's settings.
-* `Blitz: Clear Setting History` : Clear recently information.
+* `Blitz: Clear Setting History` : Clear recently information. This command can only be used in debug mode.
 
 ## Extension Settings
 
 This extension contributes the following settings by [`settings.json`](https://code.visualstudio.com/docs/customization/userandworkspace#_creating-user-and-workspace-settings)( Mac: <kbd>Command</kbd>+<kbd>,</kbd>, Windows / Linux: <kbd>File</kbd> -> <kbd>Preferences</kbd> -> <kbd>User Settings</kbd> ):
 
+* `blitz.debug`: Debug mode.
 * `blitz.statusBarAlignment`: Alignment on status bar.
 * `blitz.statusBarText`: Status bar's label.
 
 ## Keyboard shortcut Settings
 
-In default, blitz's commands doesn't apply keyboard shortcuts. Althogh,
-you can apply keyboard shortcuts by [`keybindings.json`](https://code.visualstudio.com/docs/customization/keybindings#_customizing-shortcuts)
+You can edit keyboard shortcuts by [`keybindings.json`](https://code.visualstudio.com/docs/customization/keybindings#_customizing-shortcuts)
 ( Mac: <kbd>Code</kbd> -> <kbd>Preferences</kbd> -> <kbd>Keyboard Shortcuts</kbd>, Windows / Linux: <kbd>File</kbd> -> <kbd>Preferences</kbd> -> <kbd>Keyboard Shortcuts</kbd>).
 
 Command name on `keybindings.json` is diffarent from on Command Pallete. See below table.
 
-|on Command Pallete|on keybindings.json|
-|-|-|
-|`Blitz: Edit Settings`|`blitz.editSettings`|
-|`Blitz: Undo Setting`|`blitz.undoSetting`|
-|`Blitz: Redo Setting`|`blitz.redoSetting`|
-|`Blitz: Clear Setting History`|`blitz.clearHistory`|
+|on Command Pallete|on keybindings.json|default Keyboard shortcut|
+|-|-|-|
+|`Blitz: Edit Settings`|`blitz.editSettings`|Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>|
+|`Blitz: Undo Setting`|`blitz.undoSetting`|(none)|
+|`Blitz: Redo Setting`|`blitz.redoSetting`|(none)|
+|`Blitz: Clear Setting History`|`blitz.clearHistory`|(none)|
 
 ## Release Notes
 
