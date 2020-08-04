@@ -13,7 +13,16 @@ VS Code provides two setting methods: a user-friendly GUI-based setting panel an
 - Setting undo/redo
 - Reuse recently setting values
 
-<!-- ![screenshot](images/screenshot.png) -->
+### Screenshots
+
+Select a setting item.
+![screenshot](images/screenshot.0.png)
+
+Select a setting target.
+![screenshot](images/screenshot.1.png)
+
+Select a value or input a value.
+![screenshot](images/screenshot.2.png)
 
 ## Tutorial
 
