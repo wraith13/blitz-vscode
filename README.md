@@ -16,12 +16,15 @@ VS Code provides two setting methods: a user-friendly GUI-based setting panel an
 ### Screenshots
 
 Select a setting item.
+
 ![screenshot](images/screenshot.0.png)
 
-Select a setting target.
+Select a setting target. ( You can check the settings for each target at once. )
+
 ![screenshot](images/screenshot.1.png)
 
 Select a value or input a value.
+
 ![screenshot](images/screenshot.2.png)
 
 ## Tutorial
@@ -32,7 +35,7 @@ Show extension side bar within VS Code(Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<
 
 ### 1. 🚀 Edit settings
 
-Launch Command Palette, Execute `Blitz: Edit Settings` command or click eys icon on status bar or keyboard shortcut ( Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd> ). You can edit VS Code settings.
+Launch Command Palette, Execute `Blitz: Edit Settings` command or click gear icon on status bar or keyboard shortcut ( Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd> ). You can edit VS Code settings.
 
 ### 2. 🔧 Next step
 

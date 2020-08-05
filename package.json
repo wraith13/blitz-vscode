@@ -1,9 +1,10 @@
 {
     "name": "blitz",
-    "displayName": "blitz",
-    "description": "blitz config for VS Code",
+    "displayName": "Blitz",
+    "description": "Provide a quick and comfortable way to change settings by quick pick based UI.",
     "icon": "images/blitzhex.128.png",
-    "version": "0.0.1",
+    "version": "1.0.0",
+    "publisher": "wraith13",
     "license": "SEE LICENSE IN LICENSE_1_0.txt",
     "engines": {
         "vscode": "^1.45.0"
@@ -18,6 +19,11 @@
     },
     "categories": [
         "Other"
+    ],
+    "keywords": [
+        "setting",
+        "config",
+        "configuration"
     ],
     "activationEvents": [
         "*"
