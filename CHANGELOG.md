@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## 1.1.0 - 2020-08-06
 
+### Added
+
+- Enabled to filter setting item by detail.
+
 ### Fixed
 
 - Fixed an issue where null value could be incorrectly registered as recently values.

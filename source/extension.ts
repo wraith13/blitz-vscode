@@ -1743,6 +1743,7 @@ export const editSettings = async (context: CommandContext) =>
         {
             placeHolder: locale.map("Select a setting item."),
             matchOnDescription: true,
+            matchOnDetail: true,
         }
     );
 };
