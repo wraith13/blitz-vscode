@@ -658,9 +658,12 @@ const setRecentlyValues = async (entry: UndoEntry) =>
     const values = recentlyValues[makePointerStrageId(entry.pointer)] ?? [];
     const add = (value: unknown) =>
     {
-        const json = JSON.stringify(value);
-        spliceWhere(values, i => i === json);
-        values.splice(0, 0, json);
+        if (undefined !== value)
+        {
+            const json = JSON.stringify(value);
+            spliceWhere(values, i => i === json);
+            values.splice(0, 0, json);
+        }
     };
     add(entry.oldValue); // blitz 以外で設定されてた値を拾う為
     add(entry.newValue);
