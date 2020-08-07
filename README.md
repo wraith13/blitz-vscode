@@ -31,11 +31,11 @@ Select a value or input a value.
 
 ### 0. ⬇️ Install Blitz
 
-Show extension side bar within VS Code(Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>), type `blitz` and press <kbd>Enter</kbd> and click <kbd>Install</kbd>.
+Show extension side bar within VS Code(Mac:`Command`+`Shift`+`X`, Windows and Linux: `Ctrl`+`Shift`+`X`), type `blitz` and press `Enter` and click `Install`.
 
 ### 1. 🚀 Edit settings
 
-Launch Command Palette, Execute `Blitz: Edit Settings` command or click gear icon on status bar or keyboard shortcut ( Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd> ). You can edit VS Code settings.
+Launch Command Palette, Execute `Blitz: Edit Settings` command or click gear icon on status bar or keyboard shortcut ( Mac:`Command`+`Shift`+`,`, Windows and Linux: `Ctrl`+`Shift`+`,` ). You can edit VS Code settings.
 
 ### 2. 🔧 Next step
 
@@ -52,7 +52,7 @@ Enjoy!
 
 ## Extension Settings
 
-This extension contributes the following settings by [`settings.json`](https://code.visualstudio.com/docs/customization/userandworkspace#_creating-user-and-workspace-settings)( Mac: <kbd>Command</kbd>+<kbd>,</kbd>, Windows / Linux: <kbd>File</kbd> -> <kbd>Preferences</kbd> -> <kbd>User Settings</kbd> ):
+This extension contributes the following settings by [`settings.json`](https://code.visualstudio.com/docs/customization/userandworkspace#_creating-user-and-workspace-settings)( Mac: `Command`+`,`, Windows / Linux: `File` -> `Preferences` -> `User Settings` ):
 
 * `blitz.debug`: Debug mode.
 * `blitz.statusBarAlignment`: Alignment on status bar.
@@ -61,13 +61,13 @@ This extension contributes the following settings by [`settings.json`](https://c
 ## Keyboard shortcut Settings
 
 You can edit keyboard shortcuts by [`keybindings.json`](https://code.visualstudio.com/docs/customization/keybindings#_customizing-shortcuts)
-( Mac: <kbd>Code</kbd> -> <kbd>Preferences</kbd> -> <kbd>Keyboard Shortcuts</kbd>, Windows / Linux: <kbd>File</kbd> -> <kbd>Preferences</kbd> -> <kbd>Keyboard Shortcuts</kbd>).
+( Mac: `Code` -> `Preferences` -> `Keyboard Shortcuts`, Windows / Linux: `File` -> `Preferences` -> `Keyboard Shortcuts`).
 
 Command name on `keybindings.json` is diffarent from on Command Pallete. See below table.
 
 |on Command Pallete|on keybindings.json|default Keyboard shortcut|
 |-|-|-|
-|`Blitz: Edit Settings`|`blitz.editSettings`|Mac:<kbd>Command</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>, Windows and Linux: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>,</kbd>|
+|`Blitz: Edit Settings`|`blitz.editSettings`|Mac:`Command`+`Shift`+`,`, Windows and Linux: `Ctrl`+`Shift`+`,`|
 |`Blitz: Undo Setting`|`blitz.undoSetting`|(none)|
 |`Blitz: Redo Setting`|`blitz.redoSetting`|(none)|
 |`Blitz: Clear Setting History`|`blitz.clearHistory`|(none)|
