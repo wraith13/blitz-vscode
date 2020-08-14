@@ -291,7 +291,7 @@ const recursiveResolveReference = async <T extends { "$ref"?: string }>(context:
 };
 */
 const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> =>
-    <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/default");
+    <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/user");
 export interface CommandMenuItem extends vscode.QuickPickItem
 {
     when?: (menus: CommandMenuItem[]) => boolean;

@@ -4,6 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 1.3.0 - 2020-08-14
+
+### Fixed
+
+- Fixed an issue that does not work with VS Code v1.48.0.
+
 ## 1.2.0 - 2020-08-14
 
 ### Added
