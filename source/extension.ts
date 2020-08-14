@@ -59,6 +59,8 @@ interface PackageJsonConfigurationProperty extends PackageJsonConfigurationBase
     enumDescriptions?: string[];
     markdownDescription?: string;
     markdownEnumDescriptions?: string[];
+    deprecationMessage?: string;
+    markdownDeprecationMessage?: string;
     tags?: string[];
     allOf?: PackageJsonConfigurationProperty[];
 }
@@ -95,6 +97,9 @@ interface SettingsEntry extends PackageJsonConfigurationProperty
 };
 const makeSettingsEntry = (id: string, property: PackageJsonConfigurationProperty): SettingsEntry =>
     Object.assign({ id, }, property);
+const isDeprecatedEntry = (entry: SettingsEntry): boolean =>
+    undefined !== entry.deprecationMessage ||
+    undefined !== entry.markdownDeprecationMessage;
 interface SchemasSettingsDefault
 {
     properties: { [key: string]: PackageJsonConfigurationProperty };
@@ -1322,6 +1327,51 @@ const makeShowDescriptionMenu =
         }
     },
 });
+export const makeFullDeprecationMessage = (entry: SettingsEntry) =>
+    entry.deprecationMessage ?? markdownToPlaintext(entry.markdownDeprecationMessage) ?? locale.map("(This setting item is NOT deprecated.)");
+const makeShowDeprecationMessageMenu =
+(
+    focus:
+    {
+        context: CommandContext;
+        configurationTarget?: vscode.ConfigurationTarget;
+        overrideInLanguage?: boolean;
+        entry: SettingsEntry;
+    },
+    pointer?: SettingsPointer
+): CommandMenuItem =>
+({
+    label: `$(warning) ${locale.map("Show Full Deprecation Message")}`,
+    description: undefined === pointer ? focus.entry.id: makeSettingIdLabel(pointer),
+    when: () => isDeprecatedEntry(focus.entry),
+    command: async () =>
+    {
+        const editThisSettingItem = locale.map("Edit this setting item...");
+        const editOtherSetingItem = locale.map("Edit other setting item...");
+        //const cancel = "Cancel"; //"キャンセル";
+        switch
+        (
+            await vscode.window.showInformationMessage
+            (
+                makeFullDeprecationMessage(focus.entry),
+                { modal: true, },
+                editThisSettingItem,
+                editOtherSetingItem
+                //cancel
+            )
+        )
+        {
+        case editThisSettingItem:
+            undefined !== focus.configurationTarget && undefined !== focus.overrideInLanguage ?
+                await editSettingItem(<SettingsFocus>focus, pointer):
+                await selectContext(focus.context, focus.entry);
+            break;
+        case editOtherSetingItem:
+            await editSettings(focus.context);
+            break;
+        }
+    },
+});
 export const getLanguageName = (languageId: string) => vscode.extensions.all
     .map(i => <PackageJsonLanguage[]>(i.packageJSON as PackageJson)?.contributes?.languages)
     .filter(i => i)
@@ -1563,6 +1613,7 @@ async (
 (
     [
         makeShowDescriptionMenu(focus, pointer),
+        makeShowDeprecationMessageMenu(focus, pointer),
         {
             label: `$(discard) ${locale.typeableMap("Reset")}`,
             description:
@@ -1649,6 +1700,10 @@ export const makeEditSettingDescription = (entry: SettingsEntry, value: any, has
     +(debug.get("") ? `: ${makeDisplayType(entry)}`: "")
     + " = "
     + JSON.stringify(value);
+export const makeEditSettingDetail = (entry: SettingsEntry) =>
+    isDeprecatedEntry(entry) ?
+        `${entry.deprecationMessage ?? markdownToPlaintext(entry.markdownDeprecationMessage)} ( ${entry.description ?? markdownToPlaintext(entry.markdownDescription)} ?? "no description" )`:
+        (entry.description ?? markdownToPlaintext(entry.markdownDescription));
 export const makeUndoMenu = (): CommandMenuItem[] =>
 {
     const result: CommandMenuItem[] = [];
@@ -1733,9 +1788,9 @@ export const editSettings = async (context: CommandContext) =>
             (
                 i =>
                 ({
-                    label: `$(settings-gear) ${makeSettingLabel(i.pointer)}`,
+                    label: `${isDeprecatedEntry(i.entry) ? "$(warning)": "$(settings-gear)"} ${makeSettingLabel(i.pointer)}`,
                     description: makeEditSettingDescription(i.entry, i.value, i.hasValue),
-                    detail: i.entry.description ?? markdownToPlaintext(i.entry.markdownDescription),
+                    detail: makeEditSettingDetail(i.entry),
                     command: async () => await selectContext(context, await resolveReference(context, i.entry)),
                 })
             )
