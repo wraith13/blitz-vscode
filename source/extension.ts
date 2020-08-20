@@ -1163,28 +1163,31 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
             }
             if ( ! entry.items?.type || hasType(entry.items, "string"))
             {
-                result.push
-                ({
-                    label: `$(add) ${locale.map("Add string item")}`,
-                    command: async () => await editSettingValue
-                    (
-                        pointer,
-                        oldValue,
-                        input =>
-                        {
-                            if (undefined !== entry.items?.pattern)
+                if (undefined === entry.items?.enum)
+                {
+                    result.push
+                    ({
+                        label: `$(add) ${locale.map("Add string item")}`,
+                        command: async () => await editSettingValue
+                        (
+                            pointer,
+                            oldValue,
+                            input =>
                             {
-                                if ( ! new RegExp(entry.items?.pattern, "u").test(input))
+                                if (undefined !== entry.items?.pattern)
                                 {
-                                    return entry.items?.errorMessage ?? `${locale.map("This value must match that regular expression.")}:${entry.items?.pattern}`;
+                                    if ( ! new RegExp(entry.items?.pattern, "u").test(input))
+                                    {
+                                        return entry.items?.errorMessage ?? `${locale.map("This value must match that regular expression.")}:${entry.items?.pattern}`;
+                                    }
                                 }
-                            }
-                            return undefined;
-                        },
-                        input => array.concat([ input ]),
-                        "",
-                    )
-                });
+                                return undefined;
+                            },
+                            input => array.concat([ input ]),
+                            "",
+                        )
+                    });
+                }
             }
             array.forEach
             (
@@ -1199,6 +1202,22 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                     });
                 }
             );
+            if ( ! entry.items?.type || hasType(entry.items, "string"))
+            {
+                if (undefined !== entry.items?.enum)
+                {
+                    entry.items.enum.forEach
+                    (
+                        value => result.push
+                        ({
+                            label: `$(add) ${locale.map("Add")}: "${toStringOrUndefined(value)}"`,
+                            description: array.includes(value) ? "current": undefined,
+                            preview: async () => await setConfigurationQueue(pointer, array.concat([ value ])),
+                            command: async () => await setConfiguration({ pointer, newValue:array.concat([ value ]), oldValue, }),
+                        })
+                    );
+                }
+            }
         }
     }
     return result;
