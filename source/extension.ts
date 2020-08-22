@@ -63,6 +63,7 @@ interface PackageJsonConfigurationProperty extends PackageJsonConfigurationBase
     markdownDeprecationMessage?: string;
     tags?: string[];
     allOf?: PackageJsonConfigurationProperty[];
+    uniqueItems?: boolean;
 }
 interface PackageJsonConfiguration extends PackageJsonConfigurationBase
 {
@@ -1206,16 +1207,18 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
             {
                 if (undefined !== entry.items?.enum)
                 {
-                    entry.items.enum.forEach
-                    (
-                        value => result.push
-                        ({
-                            label: `$(add) ${locale.map("Add")}: "${toStringOrUndefined(value)}"`,
-                            description: array.includes(value) ? "current": undefined,
-                            preview: async () => await setConfigurationQueue(pointer, array.concat([ value ])),
-                            command: async () => await setConfiguration({ pointer, newValue:array.concat([ value ]), oldValue, }),
-                        })
-                    );
+                    entry.items.enum
+                        .filter(value => ! ((entry.uniqueItems ?? false) && array.includes(value)))
+                        .forEach
+                        (
+                            value => result.push
+                            ({
+                                label: `$(add) ${locale.map("Add")}: "${toStringOrUndefined(value)}"`,
+                                description: array.includes(value) ? "current": undefined,
+                                preview: async () => await setConfigurationQueue(pointer, array.concat([ value ])),
+                                command: async () => await setConfiguration({ pointer, newValue:array.concat([ value ]), oldValue, }),
+                            })
+                        );
                 }
             }
         }
