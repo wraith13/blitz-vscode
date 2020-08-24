@@ -626,12 +626,15 @@ interface UndoEntry
 const recentlyEntriesStrageId = `wraith13.blitz.recently.entries`;
 const recentlyDetailsStrageId = `wraith13.blitz.recently.details`;
 const recentlyValuesStrageId = `wraith13.blitz.recently.values`;
+const recentlyArrayItemsStrageId = `wraith13.blitz.recently.arrayItems`;
 const getRecentlyEntries = () => extensionContext.globalState.get<string[]>(recentlyEntriesStrageId) ?? [];
 const makePointerStrageId = (pointer: SettingsPointer) => JSON.stringify([pointer.id].concat(pointer.detailId));
 const getRecentlyDetailsRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyDetailsStrageId) ?? { };
 const getRecentlyDetails = (pointer: SettingsPointer) => getRecentlyDetailsRoot()[makePointerStrageId(pointer)] ?? [];
 const getRecentlyValuesRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyValuesStrageId) ?? { };
 const getRecentlyValues = (pointer: SettingsPointer) => getRecentlyValuesRoot()[makePointerStrageId(pointer)] ?? [];
+const getRecentlyArrayItemsRoot = () => extensionContext.globalState.get<{[pointer: string]:string[]}>(recentlyArrayItemsStrageId) ?? { };
+const getRecentlyArrayItems = (pointer: SettingsPointer) => getRecentlyArrayItemsRoot()[makePointerStrageId(pointer)] ?? [];
 const setRecentlyEntries = async (entry: UndoEntry) =>
 {
     const recentlyEntries = getRecentlyEntries();
@@ -677,17 +680,39 @@ const setRecentlyValues = async (entry: UndoEntry) =>
     recentlyValues[makePointerStrageId(entry.pointer)] = values;
     await extensionContext.globalState.update(recentlyValuesStrageId, recentlyValues);
 };
+const setRecentlyArrayItems = async (entry: UndoEntry) =>
+{
+    if (Array.isArray(entry.oldValue) || Array.isArray(entry.newValue))
+    {
+        const recentlyArrayItems = getRecentlyArrayItemsRoot();
+        const items = recentlyArrayItems[makePointerStrageId(entry.pointer)] ?? [];
+        const add = (value: string) =>
+        {
+            spliceWhere(items, i => i === value);
+            items.splice(0, 0, value);
+        };
+        const oldArray = Array.isArray(entry.oldValue) ? entry.oldValue.map(i => JSON.stringify(i)): [];
+        const newArray = Array.isArray(entry.newValue) ? entry.newValue.map(i => JSON.stringify(i)): [];
+        oldArray.filter(i => ! newArray.includes(i)).forEach(add);
+        newArray.filter(i => ! oldArray.includes(i)).forEach(add);
+        items.splice(32); // 対象の配列がデカい場合、すぐに recently が埋まって流れてしまい兼ねないので、かなり多めに保存する。 enum の場合、表示側で削る。( 削らないと全部の選択肢が recently 表示というアホな事になる。 )
+        recentlyArrayItems[makePointerStrageId(entry.pointer)] = items;
+        await extensionContext.globalState.update(recentlyArrayItemsStrageId, recentlyArrayItems);
+    }
+};
 const setRecentlies = async (entry: UndoEntry) =>
 {
     await setRecentlyEntries(entry);
     await setRecentlyDetails(entry);
     await setRecentlyValues(entry);
+    await setRecentlyArrayItems(entry);
 };
 export const clearRecentlies = async () =>
 {
     await extensionContext.globalState.update(recentlyEntriesStrageId, undefined);
     await extensionContext.globalState.update(recentlyDetailsStrageId, undefined);
     await extensionContext.globalState.update(recentlyValuesStrageId, undefined);
+    await extensionContext.globalState.update(recentlyArrayItemsStrageId, undefined);
 };
 const undoBuffer: UndoEntry[] = [];
 const redoBuffer: UndoEntry[] = [];
@@ -859,7 +884,9 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
     }
     if (0 <= (<PrimaryConfigurationType[]>[ "string", "integer", "number", "array", "object" ]).filter(i => 0 <= types.indexOf(i)).length)
     {
+        const hasArrayRecentlies = 0 < getRecentlyArrayItems(pointer).length;
         getRecentlyValues(pointer)
+            .filter((_i, ix) => ! hasArrayRecentlies || ix < 3)
             .filter((_i, ix) => undefined === entry.enum || ix +1 <= entry.enum.length /3.0)
             .forEach(i => register(JSON.parse(i), `recently`));
     }
@@ -1149,9 +1176,11 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
     const result: CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
     {
-        const array = getConfigurationTargetValue<any[]>(pointer) ?? [ ];
+        const array = (getConfigurationTargetValue<any[]>(pointer) ?? [ ]);
         if (Array.isArray(array))
         {
+            const recentlies = getRecentlyArrayItems(pointer)
+                .filter((_i, ix) => undefined === entry.items?.enum || ix +1 <= entry.items?.enum.length /3.0);
             if (entry.items?.type && hasType(entry.items, "null"))
             {
                 const newValue = array.concat([ null ]);
@@ -1197,26 +1226,40 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
                     const newValue = array.filter(_ => true).splice(index, 1);
                     result.push
                     ({
-                        label: `$(remove) ${locale.map("Remove")}: "${toStringOrUndefined(item)}"`,
+                        label: `$(remove) ${locale.map("Remove")}: ${JSON.stringify(item)}`,
+                        description: recentlies.includes(JSON.stringify(item)) ? "recently": undefined,
                         preview: async () => await setConfigurationQueue(pointer, newValue),
                         command: async () => await setConfiguration({ pointer, newValue, oldValue, }),
                     });
                 }
+            );
+            const arrayJson = array.map(i => JSON.stringify(i));
+            recentlies.filter(item => ! ((entry.uniqueItems ?? false) && arrayJson.includes(item)))
+            .forEach
+            (
+                item => result.push
+                ({
+                    label: `$(add) ${locale.map("Add")}: ${item}`,
+                    description: arrayJson.includes(item) ? "current": "recently",
+                    preview: async () => await setConfigurationQueue(pointer, array.concat([ JSON.parse(item) ])),
+                    command: async () => await setConfiguration({ pointer, newValue:array.concat([ JSON.parse(item) ]), oldValue, }),
+                })
             );
             if ( ! entry.items?.type || hasType(entry.items, "string"))
             {
                 if (undefined !== entry.items?.enum)
                 {
                     entry.items.enum
-                        .filter(value => ! ((entry.uniqueItems ?? false) && array.includes(value)))
+                        .filter(item => ! ((entry.uniqueItems ?? false) && array.includes(item)))
+                        .filter(item => ! recentlies.includes(JSON.stringify(item)))
                         .forEach
                         (
-                            value => result.push
+                            item => result.push
                             ({
-                                label: `$(add) ${locale.map("Add")}: "${toStringOrUndefined(value)}"`,
-                                description: array.includes(value) ? "current": undefined,
-                                preview: async () => await setConfigurationQueue(pointer, array.concat([ value ])),
-                                command: async () => await setConfiguration({ pointer, newValue:array.concat([ value ]), oldValue, }),
+                                label: `$(add) ${locale.map("Add")}: "${item}"`,
+                                description: array.includes(item) ? "current": undefined,
+                                preview: async () => await setConfigurationQueue(pointer, array.concat([ item ])),
+                                command: async () => await setConfiguration({ pointer, newValue:array.concat([ item ]), oldValue, }),
                             })
                         );
                 }

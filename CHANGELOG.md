@@ -4,6 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 1.6.0 - 2020-08-24
+
+### Added
+
+- Supported recently array items.
+
 ## 1.5.0 - 2020-08-22
 
 ### Added
