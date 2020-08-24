@@ -10,6 +10,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - Supported recently array items.
 
+### Fixed
+
+- Fixed the problem that array items other than the specified one is deleted.
+
 ## 1.5.0 - 2020-08-22
 
 ### Added

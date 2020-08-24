@@ -1223,7 +1223,7 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
             (
                 (item, index) =>
                 {
-                    const newValue = array.filter(_ => true).splice(index, 1);
+                    const newValue = array.filter((_,ix) => ix !== index);
                     result.push
                     ({
                         label: `$(remove) ${locale.map("Remove")}: ${JSON.stringify(item)}`,
