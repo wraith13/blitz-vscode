@@ -76,7 +76,7 @@
                         "type": "boolean",
                         "default": false,
                         "description": "%blitz.debug.description%",
-                        "scope":"window"
+                        "scope": "window"
                     },
                     "blitz.statusBar.Label": {
                         "type": "string",
@@ -103,7 +103,7 @@
                 }
             }
         ],
-        "keybindings":[
+        "keybindings": [
             {
                 "command": "blitz.editSetting",
                 "key": "shift+ctrl+,",
@@ -120,7 +120,7 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "@wraith13/vscel": "^0.0.4"
+        "@wraith13/vscel": "^0.0.7"
     },
     "devDependencies": {
         "@types/vscode": "^1.45.0",
