@@ -5,7 +5,7 @@ import localeEn from "../package.nls.json";
 import localeJa from "../package.nls.ja.json";
 const locale = vscel.locale.make(localeEn, { "ja": localeJa });
 const configRoot = vscel.config.makeRoot(packageJson);
-export const debug = configRoot.makeEntry("blitz.debug");
+export const debug = configRoot.makeEntry<boolean>("blitz.debug");
 const jsonCopy = <objectT>(object: objectT) => <objectT>JSON.parse(JSON.stringify(object));
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
@@ -293,81 +293,6 @@ const recursiveResolveReference = async <T extends { "$ref"?: string }>(context:
 */
 const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> =>
     <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/user");
-export interface CommandMenuItem extends vscode.QuickPickItem
-{
-    when?: (menus: CommandMenuItem[]) => boolean;
-    preview?: () => Promise<unknown>;
-    command?: () => Promise<unknown>;
-    tags?: string[];
-}
-export interface QuickPickOptions extends vscode.QuickPickOptions
-{
-    rollback?: () => Promise<unknown>;
-    strictRollback?: () => Promise<unknown>;
-}
-export const showQuickPick = async <T extends CommandMenuItem>
-(
-    items: T[] | Thenable<T[]>,
-    options?: QuickPickOptions,
-    token?: vscode.CancellationToken
-) =>
-{
-    let lastPreview = options ?.strictRollback ?? options ?.rollback;
-    const apply = async (method: (() => Promise<unknown>) | undefined) =>
-    {
-        if (method && lastPreview !== method)
-        {
-            lastPreview = method;
-            if (debug.get(""))
-            {
-                await method();
-            }
-            else
-            {
-                try
-                {
-                    await method();
-                }
-                catch
-                {
-                    //  適用のキャンセルにより、大量の `rejected promise not handled` でログを汚すことになってしまうので握り潰す。
-                    //  握り潰す代わりになにかログを吐いてしまうと結局同じ事だし・・・
-                    //  尚、ここでエラーになったからと言って、 return false しちゃうのはロジック的にダメ
-                }
-            }
-            return true;
-        }
-        return false;
-    };
-    const solidItems = await items;
-    const result = await vscode.window.showQuickPick
-    (
-        solidItems
-            .filter(i => undefined === i.when || i.when(solidItems)),
-        Object.assign
-        (
-            {
-                onDidSelectItem: async (item: T) =>
-                {
-                    await apply(options?.strictRollback);
-                    await apply(item?.preview) || await apply(options?.rollback);
-                }
-            },
-            options ?? { },
-        ),
-        token
-    );
-    await apply(options?.strictRollback);
-    if (result)
-    {
-        await apply(result.command) || await apply(result.preview);
-    }
-    else
-    {
-        await apply(options ?.rollback);
-    }
-    return result;
-};
 export const getDefaultValue = (entry: SettingsEntry, pointer: SettingsPointer) =>
 {
     const defaultValueFromInspectResult =  getDefaultValueFromInspectResult(inspectConfiguration(pointer));
@@ -780,7 +705,7 @@ export const makeSettingValueItem =
     entry: UndoEntry,
     description?: string,
     detail?: string,
-    when?: (menus: CommandMenuItem[]) => boolean
+    when?: (menus: vscel.menu.CommandMenuItem[]) => boolean
 ) =>
 ({
     label: `$(tag) ${JSON.stringify(entry.newValue)}`,
@@ -790,7 +715,7 @@ export const makeSettingValueItem =
     preview: async () => await setConfigurationQueue(entry.pointer, entry.newValue),
     command: async () => await setConfiguration(entry),
 });
-export const makeSettingValueItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
+export const makeSettingValueItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): vscel.menu.CommandMenuItem[] =>
 {
     const entry = focus.entry;
     const list:
@@ -798,9 +723,9 @@ export const makeSettingValueItemList = (focus: SettingsFocus, pointer: Settings
         value: any,
         description: string[],
         detail?: string,
-        when?: (menus: CommandMenuItem[]) => boolean
+        when?: (menus: vscel.menu.CommandMenuItem[]) => boolean
     }[ ] = [ ];
-    const register = (value: any, description?: string, detail?: string, when?: (menus: CommandMenuItem[]) => boolean) =>
+    const register = (value: any, description?: string, detail?: string, when?: (menus: vscel.menu.CommandMenuItem[]) => boolean) =>
     {
         const item = list.filter(i => JSON.stringify(i.value) === JSON.stringify(value))[0];
         if (item)
@@ -997,10 +922,10 @@ export const toStringOfDefault = (value: any, defaultValue: any) =>
         );
 export const toStringOrUndefined = (value: any) => toStringOfDefault(value, undefined);
 export const toStringForce = (value: any) => toStringOfDefault(value, "undefined");
-export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): Promise<CommandMenuItem[]> =>
+export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): Promise<vscel.menu.CommandMenuItem[]> =>
 {
     const entry = focus.entry;
-    const result: CommandMenuItem[] = [ ];
+    const result: vscel.menu.CommandMenuItem[] = [ ];
     const value = toStringOrUndefined(oldValue ?? getDetailValue(getDefaultValue(entry, pointer), pointer.detailId));
     if (undefined === entry.enum && hasType(entry, "string"))
     {
@@ -1170,10 +1095,10 @@ export const makeEditSettingValueItemList = async (focus: SettingsFocus, pointer
     }
     return result;
 };
-export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): CommandMenuItem[] =>
+export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): vscel.menu.CommandMenuItem[] =>
 {
     const entry = focus.entry;
-    const result: CommandMenuItem[] = [ ];
+    const result: vscel.menu.CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
     {
         const array = (getConfigurationTargetValue<any[]>(pointer) ?? [ ]);
@@ -1268,10 +1193,10 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
     }
     return result;
 };
-export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): Promise<CommandMenuItem[]> =>
+export const makeSettingValueEditObjectItemList = async (focus: SettingsFocus, pointer: SettingsPointer, oldValue: any): Promise<vscel.menu.CommandMenuItem[]> =>
 {
     const entry = focus.entry;
-    const result: CommandMenuItem[] = [ ];
+    const result: vscel.menu.CommandMenuItem[] = [ ];
     const object = getConfigurationProjectionValue<any>(pointer);
     if ( ! Array.isArray(object))
     {
@@ -1360,7 +1285,7 @@ const makeShowDescriptionMenu =
         entry: SettingsEntry;
     },
     pointer?: SettingsPointer
-): CommandMenuItem =>
+): vscel.menu.CommandMenuItem =>
 ({
     label: `$(comment) ${locale.map("Show Full Description")}`,
     description: undefined === pointer ? focus.entry.id: makeSettingIdLabel(pointer),
@@ -1404,7 +1329,7 @@ const makeShowDeprecationMessageMenu =
         entry: SettingsEntry;
     },
     pointer?: SettingsPointer
-): CommandMenuItem =>
+): vscel.menu.CommandMenuItem =>
 ({
     label: `$(warning) ${locale.map("Show Full Deprecation Message")}`,
     description: undefined === pointer ? focus.entry.id: makeSettingIdLabel(pointer),
@@ -1477,7 +1402,7 @@ export const makeContextLabel = (pointer: SettingsPointer) =>
         }
     }
 };
-export const makeContextMenuItem = (focus: SettingsFocus, value: string, description: string | undefined): CommandMenuItem =>
+export const makeContextMenuItem = (focus: SettingsFocus, value: string, description: string | undefined): vscel.menu.CommandMenuItem =>
 ({
     label: `$(symbol-namespace) ${makeContextLabel(makePointer(focus))}: ${value}`,
     description,
@@ -1489,7 +1414,7 @@ export const isLanguageOverrideEntry = (entry: SettingsEntry) => languageOverrid
 export const selectContext = async (context: CommandContext, entry: SettingsEntry) =>
 {
     console.log(`selectContext.entry: ${ JSON.stringify(entry)}`);
-    const contextMenuItemList: CommandMenuItem[] = [ ];
+    const contextMenuItemList: vscel.menu.CommandMenuItem[] = [ ];
     const languageId = getLanguageId();
     const values = inspectConfiguration
     (
@@ -1642,13 +1567,14 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
     }
     if (0 < contextMenuItemList.length)
     {
-        await showQuickPick
+        await vscel.menu.showQuickPick
         (
             contextMenuItemList,
             {
                 placeHolder: locale.map("Select a setting context."),
                 matchOnDescription: true,
                 matchOnDetail: true,
+                debug: debug.get(""),
             }
         );
     }
@@ -1674,7 +1600,7 @@ async (
         getConfigurationTargetValue(pointer),
         pointer.detailId
     ),
-) => await showQuickPick
+) => await vscel.menu.showQuickPick
 (
     [
         makeShowDescriptionMenu(focus, pointer),
@@ -1704,6 +1630,7 @@ async (
         matchOnDescription: true,
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
+        debug: debug.get(""),
     }
 );
 export const makeSettingLabel = (pointer: SettingsPointer) => [ pointer.id, ].concat(pointer.detailId).map
@@ -1769,9 +1696,9 @@ export const makeEditSettingDetail = (entry: SettingsEntry) =>
     isDeprecatedEntry(entry) ?
         `${entry.deprecationMessage ?? markdownToPlaintext(entry.markdownDeprecationMessage)} ( ${entry.description ?? markdownToPlaintext(entry.markdownDescription)} ?? "no description" )`:
         (entry.description ?? markdownToPlaintext(entry.markdownDescription));
-export const makeUndoMenu = (): CommandMenuItem[] =>
+export const makeUndoMenu = (): vscel.menu.CommandMenuItem[] =>
 {
-    const result: CommandMenuItem[] = [];
+    const result: vscel.menu.CommandMenuItem[] = [];
     if (0 < undoBuffer.length)
     {
         const entry = undoBuffer[undoBuffer.length -1];
@@ -1799,7 +1726,7 @@ export const makeUndoMenu = (): CommandMenuItem[] =>
 export const editSettings = async (context: CommandContext) =>
 {
     const recentlies = getRecentlyEntries();
-    return await showQuickPick
+    return await vscel.menu.showQuickPick
     (
         makeUndoMenu()
         .concat
@@ -1864,6 +1791,7 @@ export const editSettings = async (context: CommandContext) =>
             placeHolder: locale.map("Select a setting item."),
             matchOnDescription: true,
             matchOnDetail: true,
+            debug: debug.get(""),
         }
     );
 };
