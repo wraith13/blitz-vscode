@@ -21,6 +21,7 @@
     "Edit other setting item...": "別の設定項目を選択...",
     "(This setting item has no description.)": "(この設定項目には説明がありません。)",
     "(This setting item is NOT deprecated.)": "(この設定項目は非推奨ではありません。)",
+    "Copy key": "キーをコピー",
     "Input string": "文字列を入力",
     "Input integer": "整数値を入力",
     "Input number": "数値を入力",

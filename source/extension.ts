@@ -144,6 +144,7 @@ const makePointer = (focus: SettingsFocus): SettingsPointer =>
     detailId: [],
     scope: makeConfigurationScope(focus),
 });
+const PointerToKeyString = (pointer: SettingsPointer) => pointer.id + pointer.detailId.map(i => `[${JSON.stringify(i)}]`).join("");
 const makePointerDetail = (pointer: SettingsPointer, detailId: string): SettingsPointer =>
 ({
     configurationTarget: pointer.configurationTarget,
@@ -1591,6 +1592,12 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
 };
 export const makeRollBackMethod = (pointer: SettingsPointer, value: any) =>
     async () => await setConfigurationQueue(pointer, value);
+export const makeCopyKeyMenuItem = (pointer: SettingsPointer): vscel.menu.CommandMenuItem =>
+({
+    label: `$(key) ${locale.typeableMap("Copy key")}`,
+    description: PointerToKeyString(pointer),
+    command: async () => await vscode.env.clipboard.writeText(PointerToKeyString(pointer))
+});
 export const editSettingItem =
 async (
     focus: SettingsFocus,
@@ -1605,6 +1612,7 @@ async (
     [
         makeShowDescriptionMenu(focus, pointer),
         makeShowDeprecationMessageMenu(focus, pointer),
+        makeCopyKeyMenuItem(pointer),
         {
             label: `$(discard) ${locale.typeableMap("Reset")}`,
             description:
