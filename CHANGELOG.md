@@ -4,6 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 1.8.0 - 2020-09-??
+
+### Added
+
+- `Copy value` menu item.
+
 ## 1.7.0 - 2020-09-10
 
 ### Added

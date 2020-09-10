@@ -1598,6 +1598,13 @@ export const makeCopyKeyMenuItem = (pointer: SettingsPointer): vscel.menu.Comman
     description: PointerToKeyString(pointer),
     command: async () => await vscode.env.clipboard.writeText(PointerToKeyString(pointer))
 });
+export const makeCopyValueMenuItem = (value: any): vscel.menu.CommandMenuItem =>
+({
+    label: `$(key) ${locale.typeableMap("Copy value")}`,
+    description: JSON.stringify(value),
+    command: async () => await vscode.env.clipboard.writeText(JSON.stringify(value)),
+    when: () => undefined !== value
+});
 export const editSettingItem =
 async (
     focus: SettingsFocus,
@@ -1613,6 +1620,7 @@ async (
         makeShowDescriptionMenu(focus, pointer),
         makeShowDeprecationMessageMenu(focus, pointer),
         makeCopyKeyMenuItem(pointer),
+        makeCopyValueMenuItem(oldValue),
         {
             label: `$(discard) ${locale.typeableMap("Reset")}`,
             description:
