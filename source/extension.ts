@@ -293,7 +293,11 @@ const recursiveResolveReference = async <T extends { "$ref"?: string }>(context:
 };
 */
 const getVscodeSettings = async (context: CommandContext): Promise <SchemasSettingsDefault> =>
-    <SchemasSettingsDefault> await getSchema(context, "vscode://schemas/settings/user");
+    <SchemasSettingsDefault>
+    (
+        (await getSchema(context, "vscode://schemas/settings/default")) ??
+        (await getSchema(context, "vscode://schemas/settings/user"))
+    );
 export const getDefaultValue = (entry: SettingsEntry, pointer: SettingsPointer) =>
 {
     const defaultValueFromInspectResult =  getDefaultValueFromInspectResult(inspectConfiguration(pointer));
