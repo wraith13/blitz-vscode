@@ -72,6 +72,12 @@
             {
                 "title": "Blitz",
                 "properties": {
+                    "blitz.preview": {
+                        "type": "boolean",
+                        "default": true,
+                        "description": "%blitz.preview.description%",
+                        "scope": "window"
+                    },
                     "blitz.debug": {
                         "type": "boolean",
                         "default": false,

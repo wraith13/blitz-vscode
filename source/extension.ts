@@ -5,6 +5,7 @@ import localeEn from "../package.nls.json";
 import localeJa from "../package.nls.ja.json";
 const locale = vscel.locale.make(localeEn, { "ja": localeJa });
 const configRoot = vscel.config.makeRoot(packageJson);
+export const preview = configRoot.makeEntry<boolean>("blitz.preview");
 export const debug = configRoot.makeEntry<boolean>("blitz.debug");
 const jsonCopy = <objectT>(object: objectT) => <objectT>JSON.parse(JSON.stringify(object));
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
@@ -900,7 +901,7 @@ async (
         validateInput: async (input) =>
         {
             const result = validateInput(input);
-            if (undefined === result || null === result)
+            if ((undefined === result || null === result) && preview.get(""))
             {
                 await setConfigurationQueue(pointer, parser(input));
             }
@@ -1650,6 +1651,7 @@ async (
         matchOnDescription: true,
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
+        preview: preview.get(""),
         debug: debug.get(""),
     }
 );
@@ -1922,6 +1924,7 @@ export const activate = async (context: vscode.ExtensionContext) =>
                 )
                 {
                     [
+                        preview,
                         debug,
                         statusBarAlignment,
                         statusBarLabel

@@ -54,6 +54,7 @@ Enjoy!
 
 This extension contributes the following settings by [`settings.json`](https://code.visualstudio.com/docs/customization/userandworkspace#_creating-user-and-workspace-settings)( Mac: `Command`+`,`, Windows / Linux: `File` -> `Preferences` -> `User Settings` ):
 
+* `blitz.preview`: Temporarily apply the settings before confirming.
 * `blitz.debug`: Debug mode.
 * `blitz.statusBarAlignment`: Alignment on status bar.
 * `blitz.statusBarText`: Status bar's label.
