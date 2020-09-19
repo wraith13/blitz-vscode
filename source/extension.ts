@@ -1923,13 +1923,7 @@ export const activate = async (context: vscode.ExtensionContext) =>
                     event.affectsConfiguration("blitz")
                 )
                 {
-                    [
-                        preview,
-                        debug,
-                        statusBarAlignment,
-                        statusBarLabel
-                    ]
-                    .forEach(i => i.clear());
+                    configRoot.entries.forEach(i => i.clear());
                     await onDidUpdateConfig();
                 }
             }
