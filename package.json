@@ -126,7 +126,7 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "@wraith13/vscel": "^0.0.9"
+        "@wraith13/vscel": "^0.0.11"
     },
     "devDependencies": {
         "@types/vscode": "^1.45.0",
