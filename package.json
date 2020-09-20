@@ -83,6 +83,7 @@
                         "items": {
                             "type": "string"
                         },
+                        "uniqueItems": true,
                         "default": [ "mssql.connections" ],
                         "description": "%blitz.disabledPreviewSettings.description%",
                         "scope": "window"
