@@ -4,6 +4,7 @@
     "blitz.redoSetting.title": "Redo Setting",
     "blitz.clearHistory.title": "Clear Setting History",
     "blitz.preview.description": "Temporarily apply the settings before confirming.",
+    "blitz.disabledPreviewSettings.description": "A list of settings for which you want to disable the settings preview.",
     "blitz.debug.description": "Debug mode.",
     "blitz.statusBar.Label.description": "Status bar item's label.",
     "blitz.statusBar.Alignment.description": "Status bar item's alignment.",

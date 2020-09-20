@@ -4,6 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 1.10.0 - 2020-09-21
+
+### Added
+
+- `blitz.disabledPreviewSettings` setting.
+
 ## 1.9.0 - 2020-09-17
 
 ### Added

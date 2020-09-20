@@ -6,6 +6,7 @@ import localeJa from "../package.nls.ja.json";
 const locale = vscel.locale.make(localeEn, { "ja": localeJa });
 const configRoot = vscel.config.makeRoot(packageJson);
 export const preview = configRoot.makeEntry<boolean>("blitz.preview");
+export const disabledPreviewSettings = configRoot.makeEntry<string[]>("blitz.disabledPreviewSettings");
 export const debug = configRoot.makeEntry<boolean>("blitz.debug");
 const jsonCopy = <objectT>(object: objectT) => <objectT>JSON.parse(JSON.stringify(object));
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
@@ -154,6 +155,11 @@ const makePointerDetail = (pointer: SettingsPointer, detailId: string): Settings
     detailId: pointer.detailId.concat(detailId),
     scope: pointer.scope,
 });
+const isPreviewEnabled = (pointer: SettingsPointer) =>
+{
+    const key = PointerToKeyString(pointer) + "[";
+    return preview.get("") && disabledPreviewSettings.get("").filter(i => key.startsWith(i +"[")).length <= 0;
+};
 const setDetailValue = (root: any, detailId: string[], value: unknown) =>
 {
     if (0 < detailId.length)
@@ -901,7 +907,7 @@ async (
         validateInput: async (input) =>
         {
             const result = validateInput(input);
-            if ((undefined === result || null === result) && preview.get(""))
+            if ((undefined === result || null === result) && isPreviewEnabled(pointer))
             {
                 await setConfigurationQueue(pointer, parser(input));
             }
@@ -1651,7 +1657,7 @@ async (
         matchOnDescription: true,
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
-        preview: preview.get(""),
+        preview: isPreviewEnabled(pointer),
         debug: debug.get(""),
     }
 );

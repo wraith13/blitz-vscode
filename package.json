@@ -78,6 +78,15 @@
                         "description": "%blitz.preview.description%",
                         "scope": "window"
                     },
+                    "blitz.disabledPreviewSettings": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "default": [ "mssql.connections" ],
+                        "description": "%blitz.disabledPreviewSettings.description%",
+                        "scope": "window"
+                    },
                     "blitz.debug": {
                         "type": "boolean",
                         "default": false,
