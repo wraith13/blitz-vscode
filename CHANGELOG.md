@@ -10,6 +10,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 - `blitz.disabledPreviewSettings` setting.
 
+### Fixed
+
+- Fixed an issue where the default items were removed when adding an element to an array.
+
 ## 1.9.0 - 2020-09-17
 
 ### Added

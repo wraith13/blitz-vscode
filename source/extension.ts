@@ -307,7 +307,7 @@ const getVscodeSettings = async (context: CommandContext): Promise <SchemasSetti
     );
 export const getDefaultValue = (entry: SettingsEntry, pointer: SettingsPointer) =>
 {
-    const defaultValueFromInspectResult =  getDefaultValueFromInspectResult(inspectConfiguration(pointer));
+    const defaultValueFromInspectResult = getDefaultValueFromInspectResult(inspectConfiguration(pointer));
     if (undefined !== defaultValueFromInspectResult)
     {
         return defaultValueFromInspectResult;
@@ -1113,9 +1113,18 @@ export const makeSettingValueEditArrayItemList = (focus: SettingsFocus, pointer:
     const result: vscel.menu.CommandMenuItem[] = [ ];
     if (hasType(entry, "array"))
     {
-        const array = (getConfigurationTargetValue<any[]>(pointer) ?? [ ]);
-        if (Array.isArray(array))
+        let value = getConfigurationTargetValue<any[]>(pointer);
+        if (undefined === value)
         {
+            value = getDefaultValueFromInspectResult(inspectConfiguration(pointer));
+            if (! Array.isArray(value))
+            {
+                value = [ ];
+            }
+        }
+        if (Array.isArray(value))
+        {
+            const array = value;
             const recentlies = getRecentlyArrayItems(pointer)
                 .filter((_i, ix) => undefined === entry.items?.enum || ix +1 <= entry.items?.enum.length /3.0);
             if (entry.items?.type && hasType(entry.items, "null"))
