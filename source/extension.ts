@@ -1840,34 +1840,7 @@ const alignmentObject = Object.freeze
 });
 export const statusBarAlignment = configRoot.makeMapEntry("blitz.statusBar.Alignment", alignmentObject);
 export const statusBarLabel = configRoot.makeEntry<string>("blitz.statusBar.Label");
-const createStatusBarItem =
-(
-    properties :
-    {
-        alignment ? : vscode.StatusBarAlignment,
-        text ? : string,
-        command ? : string,
-        tooltip ? : string
-    }
-)
-: vscode.StatusBarItem =>
-{
-    const result = vscode.window.createStatusBarItem(properties.alignment);
-    if (undefined !== properties.text)
-    {
-        result.text = properties.text;
-    }
-    if (undefined !== properties.command)
-    {
-        result.command = properties.command;
-    }
-    if (undefined !== properties.tooltip)
-    {
-        result.tooltip = properties.tooltip;
-    }
-    return result;
-};
-export const makeStatusBarItem = (alignment: vscode.StatusBarAlignment) => createStatusBarItem
+export const makeStatusBarItem = (alignment: vscode.StatusBarAlignment) => vscel.statusbar.createItem
 ({
     alignment,
     //text: statusBarLabel.get(""),
