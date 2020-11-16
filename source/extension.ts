@@ -898,32 +898,22 @@ async (
     validateInput: (input: string) => string | undefined | null,
     parser: (input: string) => unknown,
     value: string// = toStringOrUndefined(oldValue)
-) =>
-{
-    const rollback = makeRollBackMethod(pointer, oldValue);
-    const input = await vscode.window.showInputBox
-    ({
-        value,
-        validateInput: async (input) =>
+) => await vscel.menu.showInputBox
+({
+    value,
+    validateInput: async (input) =>
+    {
+        const result = validateInput(input);
+        if ((undefined === result || null === result) && isPreviewEnabled(pointer))
         {
-            const result = validateInput(input);
-            if ((undefined === result || null === result) && isPreviewEnabled(pointer))
-            {
-                await setConfigurationQueue(pointer, parser(input));
-            }
-            return result;
+            await setConfigurationQueue(pointer, parser(input));
         }
-    });
-    if (undefined !== input)
-    {
-        const newValue = parser(input);
-        await setConfiguration({ pointer, newValue, oldValue, });
-    }
-    else
-    {
-        rollback();
-    }
-};
+        return result;
+    },
+    preview: false,
+    command: async input => await setConfiguration({ pointer, newValue: parser(input), oldValue, }),
+    onCancel: makeRollBackMethod(pointer, oldValue)
+});
 export const toStringOfDefault = (value: any, defaultValue: any) =>
     undefined === value ?
         defaultValue:
