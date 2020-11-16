@@ -84,7 +84,9 @@
                             "type": "string"
                         },
                         "uniqueItems": true,
-                        "default": [ "mssql.connections" ],
+                        "default": [
+                            "mssql.connections"
+                        ],
                         "description": "%blitz.disabledPreviewSettings.description%",
                         "scope": "window"
                     },
@@ -136,7 +138,7 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "@wraith13/vscel": "^0.0.13"
+        "@wraith13/vscel": "^0.0.28"
     },
     "devDependencies": {
         "@types/vscode": "^1.45.0",
