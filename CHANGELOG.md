@@ -4,7 +4,7 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## 1.10.2 - 2021-??-??
+## 1.10.2 - 2021-06-17
 
 ### Changed
 
