@@ -5,9 +5,9 @@ import localeEn from "../package.nls.json";
 import localeJa from "../package.nls.ja.json";
 const locale = vscel.locale.make(localeEn, { "ja": localeJa });
 const configRoot = vscel.config.makeRoot(packageJson);
-export const preview = configRoot.makeEntry<boolean>("blitz.preview");
-export const disabledPreviewSettings = configRoot.makeEntry<string[]>("blitz.disabledPreviewSettings");
-export const debug = configRoot.makeEntry<boolean>("blitz.debug");
+export const preview = configRoot.makeEntry<boolean>("blitz.preview", "active-workspace");
+export const disabledPreviewSettings = configRoot.makeEntry<string[]>("blitz.disabledPreviewSettings", "active-workspace");
+export const debug = configRoot.makeEntry<boolean>("blitz.debug", "active-workspace");
 const jsonCopy = <objectT>(object: objectT) => <objectT>JSON.parse(JSON.stringify(object));
 type PrimaryConfigurationType = "null" | "boolean" | "string" | "integer" | "number" | "array" | "object";
 type ConfigurationType = PrimaryConfigurationType | PrimaryConfigurationType[];
@@ -158,7 +158,7 @@ const makePointerDetail = (pointer: SettingsPointer, detailId: string): Settings
 const isPreviewEnabled = (pointer: SettingsPointer) =>
 {
     const key = PointerToKeyString(pointer) + "[";
-    return preview.get("") && disabledPreviewSettings.get("").filter(i => key.startsWith(i +"[")).length <= 0;
+    return preview.get("default-scope") && disabledPreviewSettings.get("default-scope").filter(i => key.startsWith(i +"[")).length <= 0;
 };
 const setDetailValue = (root: any, detailId: string[], value: unknown) =>
 {
@@ -508,7 +508,7 @@ async (
     pointer: SettingsPointer,
     value: unknown,
     wait = 500
-) => new Promise
+) => new Promise<void>
 (
     async (resolve, rejct) =>
     {
@@ -1585,7 +1585,7 @@ export const selectContext = async (context: CommandContext, entry: SettingsEntr
                 placeHolder: locale.map("Select a setting context."),
                 matchOnDescription: true,
                 matchOnDetail: true,
-                debug: debug.get(""),
+                debug: debug.get("default-scope"),
             }
         );
     }
@@ -1657,7 +1657,7 @@ async (
         rollback: makeRollBackMethod(pointer, oldValue),
         // ignoreFocusOut: true,
         preview: isPreviewEnabled(pointer),
-        debug: debug.get(""),
+        debug: debug.get("default-scope"),
     }
 );
 export const makeSettingLabel = (pointer: SettingsPointer) => [ pointer.id, ].concat(pointer.detailId).map
@@ -1716,7 +1716,7 @@ export const makeDisplayType = (entry: SettingsEntry) =>
 export const makeEditSettingDescription = (entry: SettingsEntry, value: any, hasValue: boolean) =>
     (hasValue ? "* ": "")
     + entry.id
-    +(debug.get("") ? `: ${makeDisplayType(entry)}`: "")
+    +(debug.get("default-scope") ? `: ${makeDisplayType(entry)}`: "")
     + " = "
     + JSON.stringify(value);
 export const makeEditSettingDetail = (entry: SettingsEntry) =>
@@ -1818,7 +1818,7 @@ export const editSettings = async (context: CommandContext) =>
             placeHolder: locale.map("Select a setting item."),
             matchOnDescription: true,
             matchOnDetail: true,
-            debug: debug.get(""),
+            debug: debug.get("default-scope"),
         }
     );
 };
@@ -1828,12 +1828,12 @@ const alignmentObject = Object.freeze
     "left": vscode.StatusBarAlignment.Left,
     "right": vscode.StatusBarAlignment.Right,
 });
-export const statusBarAlignment = configRoot.makeMapEntry("blitz.statusBar.Alignment", alignmentObject);
-export const statusBarLabel = configRoot.makeEntry<string>("blitz.statusBar.Label");
+export const statusBarAlignment = configRoot.makeMapEntry("blitz.statusBar.Alignment", "root-workspace", alignmentObject);
+export const statusBarLabel = configRoot.makeEntry<string>("blitz.statusBar.Label", "root-workspace");
 export const makeStatusBarItem = (alignment: vscode.StatusBarAlignment) => vscel.statusbar.createItem
 ({
     alignment,
-    //text: statusBarLabel.get(""),
+    //text: statusBarLabel.get("default"),
     command: `blitz.editSetting`,
     tooltip: locale.map("blitz.editSetting.title"),
 });
@@ -1848,9 +1848,9 @@ export const updateStatusBarItem = () =>
     (
         item =>
         {
-            if (item.alignment === statusBarAlignment.get(""))
+            if (item.alignment === statusBarAlignment.get("default-scope"))
             {
-                item.text = statusBarLabel.get("");
+                item.text = statusBarLabel.get("default-scope");
                 item.show();
             }
             else
@@ -1862,7 +1862,7 @@ export const updateStatusBarItem = () =>
 export const onDidUpdateConfig = async () =>
 {
     updateStatusBarItem();
-    await setContext('isBlitzDebugMode', debug.get(""));
+    await setContext('isBlitzDebugMode', debug.get("default-scope"));
 };
 let extensionContext: vscode.ExtensionContext;
 export const activate = async (context: vscode.ExtensionContext) =>
@@ -1901,7 +1901,7 @@ export const activate = async (context: vscode.ExtensionContext) =>
                     event.affectsConfiguration("blitz")
                 )
                 {
-                    configRoot.entries.forEach(i => i.clear());
+                    //configRoot.entries.forEach(i => i.clear());
                     await onDidUpdateConfig();
                 }
             }
