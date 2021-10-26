@@ -4,6 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 1.10.4 - 2021-??-??
+
+### Changed
+
+- `activationEvents`: `*` -> `onStartupFinished`
+
 ## 1.10.3 - 2021-10-23
 
 ### Added
