@@ -4,7 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## 1.10.4 - 202?-??-??
+## 1.10.4 - 2022-07-13
+
+### Added
+
+- Also released on [github.com](https://github.com/wraith13/blitz-vscode/releases)
+- VSIX download link in README.md
 
 ### Changed
 
