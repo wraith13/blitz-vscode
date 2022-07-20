@@ -4,6 +4,12 @@ All notable changes to the "blitz" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 1.10.5 - 2022-??-??
+
+### Security
+
+- `npm audit fix`
+
 ## 1.10.4 - 2022-07-13
 
 ### Added
